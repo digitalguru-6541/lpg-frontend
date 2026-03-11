@@ -1,0 +1,228 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" 
+  url      = env("DATABASE_URL")
+}
+
+// 🚀 AUTHENTICATION & ROLE MANAGEMENT
+model User {
+  id            String   @id @default(uuid())
+  name          String
+  email         String   @unique
+  passwordHash  String
+  role          String   @default("USER") // "USER", "AGENCY_PARTNER", "MASTER_ADMIN"
+  phone         String?
+  agencyName    String?
+
+  leads         Lead[]          
+  savedProps    SavedProperty[] 
+  agencyUsers   AgencyUser[]    
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// 🚀 SUB-AGENT RBAC
+model AgencyUser {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  role         String   @default("CALLER") // "ADMIN", "EXECUTIVE", "CALLER"
+  agencyName   String
+
+  ownerId      String
+  owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// 🚀 WISHLIST
+model SavedProperty {
+  id          String   @id @default(uuid())
+  userId      String
+  propertyId  String
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, propertyId])
+}
+
+// 🚀 THE SMART CRM LEAD MODEL
+model Lead {
+  id              String   @id @default(uuid())
+
+  source          String   @default("PLATFORM") 
+  manualSummary   String?  
+
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  name            String?
+  phone           String?
+  location        String?
+  budget          String?
+  purpose         String?
+  category        String?
+  subCategory     String?
+  isFurnished     Boolean? @default(false)
+  intent          String?
+  score           Int      @default(10)
+  status          String   @default("new")
+  handledBy       String?
+  agentNotes      String?
+  isDuplicate     Boolean  @default(false)
+  reminderDate    DateTime?
+  reminderNote    String?
+
+  chatSummary     String?
+
+  assignedAgency  String   @default("Pending Assignment")
+  closingPrice    Float?
+
+  commissionRate  Float?
+  commissionFee   Float?
+  tokenReceipt    String?
+
+  isCommissionPaid Boolean @default(false)
+
+  tasks           Task[]
+  activityLogs    ActivityLog[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 🚀 CRM TASK MANAGER
+model Task {
+  id          String   @id @default(uuid())
+  leadId      String
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  title       String
+  dueDate     DateTime
+  isCompleted Boolean  @default(false)
+  assignedTo  String?  
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([leadId])
+}
+
+// 🚀 CRM ACTIVITY TIMELINE
+model ActivityLog {
+  id          String   @id @default(uuid())
+  leadId      String?  
+  lead        Lead?    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  action      String   
+  details     String   
+  performedBy String?  
+
+  createdAt   DateTime @default(now())
+
+  @@index([leadId])
+}
+
+// 🏠 THE UNIFIED PROPERTY MODEL
+model Property {
+  id              String   @id @default(uuid())
+  title           String
+  description     String?
+  purpose         String
+  category        String
+  subCategory     String
+  price           Float
+  priceFormatted  String
+  size            String
+  bedrooms        Int?     
+  bathrooms       Int?
+  isFurnished     Boolean  @default(false)
+  
+  paymentMode     String   @default("Cash") 
+  installmentPlan String?  
+  criticalNotes   String?  
+
+  location        String
+  city            String   @default("Lahore")
+  imageUrl        String
+  imageUrls       String[] @default([]) // 🚀 NEW: ARRAY TO STORE UP TO 12 GOOGLE CLOUD LINKS
+  videoUrl        String?  
+  isFeatured      Boolean  @default(false)
+  
+  agencyName      String   @default("LPG Premium")
+  submittedBy     String?  
+  sourcePhone     String?
+
+  savedBy         SavedProperty[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 📢 AD MANAGER
+model AdCampaign {
+  id          String   @id @default(uuid())
+  title       String
+  placement   String
+  imageUrl    String
+  targetUrl   String?
+  status      String   @default("active")
+  revenue     Float    @default(0)
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+
+  createdAt   DateTime @default(now())
+}
+
+// 🧠 AI ROUTING RULES
+model RoutingRule {
+  id          String   @id @default(uuid())
+  ruleText    String
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+}
+
+// 🌟 HOMEPAGE LIFESTYLE CMS
+model LifestyleCollection {
+  id          String   @id @default(uuid())
+  title       String
+  countText   String
+  imageUrl    String
+  targetUrl   String   @default("/")
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+}
+
+// ⚙️ GLOBAL SaaS SETTINGS
+model SystemSettings {
+  id                  String  @id @default("global")
+  baseCommissionRate  Float   @default(15.0)
+  bpoAlertThreshold   Int     @default(30)
+  geminiApiKey        String?
+  whatsappWebhookUrl  String?
+  adminEmailAlerts    String?
+  autoApproveListings Boolean @default(false)
+  maintenanceMode     Boolean @default(false)
+
+  updatedAt           DateTime @updatedAt
+}
+
+// 🧠 DATABASE CHAT MEMORY
+model ChatMessage {
+  id        String   @id @default(uuid())
+  sessionId String   
+  role      String   
+  content   String   
+
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
+}
