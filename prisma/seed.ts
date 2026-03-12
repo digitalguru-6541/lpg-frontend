@@ -1,9 +1,41 @@
 import { PrismaClient } from '@prisma/client';
+import crypto from 'crypto';
+
 const prisma = new PrismaClient();
 
+// Secure, zero-dependency password hasher (Matches your Next.js auth route)
+const hashPassword = (password: string) => {
+  return crypto.createHash('sha256').update(password).digest('hex');
+};
+
 async function main() {
-  console.log('Start seeding...');
-  
+  console.log('🌱 Start seeding...');
+
+  // 1. CREATE MASTER ADMIN USER
+  const adminEmail = 'admin@lpg.com';
+  const adminPassword = 'password123';
+  const hashedPassword = hashPassword(adminPassword);
+
+  const adminUser = await prisma.user.upsert({
+    where: { email: adminEmail },
+    update: {
+      passwordHash: hashedPassword, // Ensures password is correct even if user exists
+      role: 'MASTER_ADMIN',
+      agencyName: 'LPG Premium',
+    },
+    create: {
+      email: adminEmail,
+      name: 'System Admin',
+      passwordHash: hashedPassword,
+      role: 'MASTER_ADMIN',
+      phone: '+923000000000',
+      agencyName: 'LPG Premium',
+    },
+  });
+
+  console.log(`✅ Admin user ready. Login with: ${adminEmail} / ${adminPassword}`);
+
+  // 2. SEED PROPERTIES (Without duplicates)
   const properties = [
     {
       title: 'Luxury Villa in Gulberg',
@@ -18,8 +50,9 @@ async function main() {
       imageUrl: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811',
       purpose: 'buy',
       category: 'Residential',
-      subCategory: 'House',      // <-- Added missing field
-      isFeatured: true
+      subCategory: 'House',
+      isFeatured: true,
+      agencyName: 'LPG Premium'
     },
     {
       title: 'Modern Apartment - DHA Phase 6',
@@ -34,18 +67,29 @@ async function main() {
       imageUrl: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750',
       purpose: 'buy',
       category: 'Residential',
-      subCategory: 'Apartment',  // <-- Added missing field
-      isFeatured: false
+      subCategory: 'Apartment',
+      isFeatured: false,
+      agencyName: 'LPG Premium'
     }
   ];
 
   for (const p of properties) {
-    const property = await prisma.property.create({
-      data: p,
+    // Prevent duplicates by checking if a property with this title already exists
+    const existingProp = await prisma.property.findFirst({
+      where: { title: p.title }
     });
-    console.log(`Created property with id: ${property.id}`);
+
+    if (!existingProp) {
+      const property = await prisma.property.create({
+        data: p,
+      });
+      console.log(`✅ Created property: ${property.title}`);
+    } else {
+      console.log(`⏭️ Skipped duplicate property: ${p.title}`);
+    }
   }
-  console.log('Seeding finished.');
+
+  console.log('🌲 Seeding finished successfully.');
 }
 
 main()

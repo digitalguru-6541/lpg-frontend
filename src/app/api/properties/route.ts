@@ -44,8 +44,8 @@ export async function GET(req: Request) {
     const agencyName = searchParams.get('agencyName');
     const query = agencyName ? { where: { agencyName } } : {};
 
-    const properties = await prisma.property.findMany({
-      ...query,
+ const properties = await prisma.property.findMany({
+      where: agencyName ? { agencyName } : undefined,
       orderBy: { createdAt: 'desc' }
     });
 

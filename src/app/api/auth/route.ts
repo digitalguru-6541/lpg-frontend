@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { SignJWT } from "jose";
+import crypto from "crypto"; // Added crypto to match the seed file
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 const prisma = globalForPrisma.prisma || new PrismaClient();
@@ -25,8 +26,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
     }
 
-    // 2. Password Verification (Simulation)
-    const isMatch = password === user.passwordHash;
+    // 2. Secure Password Verification
+    // We encrypt the incoming password to see if it matches the encrypted password in the database
+    const incomingPasswordHash = crypto.createHash('sha256').update(password).digest('hex');
+    const isMatch = incomingPasswordHash === user.passwordHash;
 
     if (!isMatch) {
       return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
@@ -48,8 +51,8 @@ export async function POST(req: Request) {
       .sign(JWT_SECRET);
 
     // 5. Create Response & Set HTTP-Only Cookie
-    const response = NextResponse.json({ 
-      success: true, 
+    const response = NextResponse.json({
+      success: true,
       role: user.role,
       redirectUrl: user.role === "MASTER_ADMIN" ? "/command-center" : 
                    user.role === "AGENCY_PARTNER" ? "/dashboard" : "/user-dashboard"
@@ -58,11 +61,11 @@ export async function POST(req: Request) {
     response.cookies.set({
       name: "lpg_auth_session",
       value: token,
-      httpOnly: true, 
-      secure: process.env.NODE_ENV === "production", 
-      sameSite: "lax", 
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 24 
+      maxAge: 60 * 60 * 24
     });
 
     return response;

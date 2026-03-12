@@ -19,10 +19,8 @@ export async function GET(req: Request) {
     const ownerId = searchParams.get('ownerId');
 
     // If an ownerId is passed, fetch only their agents. Otherwise, fetch all.
-    const query = ownerId ? { where: { ownerId } } : {};
-    
-    const users = await prisma.agencyUser.findMany({
-      ...query,
+   const users = await prisma.agencyUser.findMany({
+      where: ownerId ? { ownerId } : undefined,
       orderBy: { createdAt: 'desc' }
     });
 

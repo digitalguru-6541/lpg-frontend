@@ -2507,7 +2507,7 @@ function EditPropertyForm({ initialData, activeUser, onClose, onSuccess }: { ini
   };
 
   const removeImage = (indexToRemove: number) => {
-    setFormData(prev => ({ ...prev, images: prev.images.filter((_, idx) => idx !== indexToRemove) }));
+    setFormData(prev => ({ ...prev, images: prev.images.filter((_: string, idx: number) => idx !== indexToRemove) }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
