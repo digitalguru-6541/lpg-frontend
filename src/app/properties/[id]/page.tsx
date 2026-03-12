@@ -433,7 +433,7 @@ This premium listing is currently available on a ${property.paymentMode.toLowerC
 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
 <XAxis dataKey="year" stroke="rgba(255,255,255,0.5)" axisLine={false} tickLine={false} />
 <YAxis stroke="rgba(255,255,255,0.5)" axisLine={false} tickLine={false} tickFormatter={(value) => formatPKR(value)} />
-<Tooltip formatter={(value: number) => formatPKR(value)} cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{ backgroundColor: '#1E293B', border: '1px solid rgba(255,255,255,0.1)' }} />
+<Tooltip formatter={(value: any) => formatPKR(value)} cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{ backgroundColor: '#1E293B', border: '1px solid rgba(255,255,255,0.1)' }} />
 <Bar dataKey="rentLost" name="Rent Wasted" fill="#ef4444" radius={[4, 4, 0, 0]} />
 <Bar dataKey="equityBuilt" name="Capital Gains (If Bought)" fill="#10B981" radius={[4, 4, 0, 0]} />
 </BarChart>
@@ -565,7 +565,7 @@ Verify <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-trans
 </defs>
 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
 <Tooltip
-formatter={(value: number) => `PKR ${value.toLocaleString()}`}
+formatter={(value: any) => `PKR ${value.toLocaleString()}`}
 contentStyle={{ backgroundColor: '#101726', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
 />
 <Area type="monotone" dataKey="price" stroke="#A78BFA" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />

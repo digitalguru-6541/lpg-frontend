@@ -2408,7 +2408,7 @@ function PropertyUploadForm({ activeUser, onSuccess }: { activeUser: any, onSucc
 
               {formData.images.length > 0 && (
                 <div className="flex flex-wrap gap-3 mt-4">
-                  {formData.images.map((img, idx) => (
+                  {formData.images.map((img: string, idx: number) => (
                     <div key={idx} className="relative w-16 h-16 rounded-lg overflow-hidden border border-white/10 group shadow-md">
                       <img src={img} className="w-full h-full object-cover" alt="Thumb" />
                       <button type="button" onClick={() => removeImage(idx)} className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-500 text-white rounded p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -2679,7 +2679,7 @@ function EditPropertyForm({ initialData, activeUser, onClose, onSuccess }: { ini
 
             {formData.images.length > 0 && (
               <div className="flex flex-wrap gap-3 mt-4">
-                {formData.images.map((img, idx) => (
+                {formData.images.map((img: string, idx: number) => (
                   <div key={idx} className="relative w-16 h-16 rounded-lg overflow-hidden border border-white/10 group shadow-md">
                     <img src={img} className="w-full h-full object-cover" alt="Thumb" />
                     <button type="button" onClick={() => removeImage(idx)} className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-500 text-white rounded p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">

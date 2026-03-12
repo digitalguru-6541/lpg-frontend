@@ -227,7 +227,7 @@ export default function Home() {
                       <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-gold/50 transition-colors cursor-pointer relative h-full">
                         <div className="absolute top-3 left-3 z-20 bg-gold text-white text-[10px] uppercase font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-lg"><Star className="w-3 h-3 fill-current" /> Featured</div>
                         <div className="h-40 overflow-hidden"><img src={prop.imageUrl} alt={prop.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" /></div>
-                        <div className="p-4"><h4 className="text-lg font-bold text-white line-clamp-1 mb-1 group-hover:text-gold-light transition-colors">{prop.title}</h4><p className="text-emerald-light font-semibold">{prop.price || prop.priceFormatted}</p></div>
+                        <div className="p-4"><h4 className="text-lg font-bold text-white line-clamp-1 mb-1 group-hover:text-gold-light transition-colors">{prop.title}</h4><p className="text-emerald-light font-semibold">{prop.price || (prop as any).priceFormatted}</p></div>
                       </div>
                     </Link>
                   ))}
