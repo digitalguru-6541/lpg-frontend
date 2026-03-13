@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Mic, Sparkles, Send, Bot, Star, User, MapPin, TrendingUp, LayoutList, Map as MapIcon, ChevronRight, Flame, Calculator, Play, Building, ShieldCheck, ExternalLink, Image as ImageIcon, FileText, Phone } from "lucide-react";
+import { Mic, Sparkles, Send, Bot, Star, User, MapPin, TrendingUp, LayoutList, Map as MapIcon, ChevronRight, Flame, Calculator, Play, Building, ShieldCheck, ExternalLink, Image as ImageIcon, FileText, Phone, X } from "lucide-react";
 import Link from "next/link";
 
 // --- Interfaces ---
@@ -28,8 +28,9 @@ export default function Home() {
   const [featuredProperties, setFeaturedProperties] = useState<Property[]>([]);
   const [lifestyleCollections, setLifestyleCollections] = useState<Lifestyle[]>([]);
 
-  // 🧠 Sticky Chat Session State
+  // 🧠 Sticky Chat Session State & Mobile Toggle
   const [sessionId, setSessionId] = useState<string>("");
+  const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
 
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -45,7 +46,6 @@ export default function Home() {
     // 🧠 1. Get or Create Persistent Session ID
     let currentSessionId = localStorage.getItem("lpg_session_id");
     if (!currentSessionId) {
-      // Generate a simple, unique session string for anonymous users
       currentSessionId = "session_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
       localStorage.setItem("lpg_session_id", currentSessionId);
     }
@@ -73,7 +73,6 @@ export default function Home() {
     // 🚀 Unified Data Fetch (Ads, Inventory, Lifestyles)
     const fetchInitialData = async () => {
       try {
-        // Fetch Ads
         const resAds = await fetch('/api/ads');
         if (resAds.ok) {
           const fetchedAds = await resAds.json();
@@ -83,7 +82,6 @@ export default function Home() {
           if (sideBanner) setSidebarAd(sideBanner);
         }
 
-        // Fetch Featured Properties
         const resProps = await fetch('/api/inventory');
         if (resProps.ok) {
           const fetchedProps = await resProps.json();
@@ -91,21 +89,28 @@ export default function Home() {
           setFeaturedProperties(featured);
         }
 
-        // Fetch Lifestyle Collections
         const resLifestyles = await fetch('/api/lifestyles');
         if (resLifestyles.ok) {
           const fetchedLifestyles = await resLifestyles.json();
           setLifestyleCollections(fetchedLifestyles.filter((l: Lifestyle) => l.isActive));
         }
-
       } catch (err) { console.error("Initial Data Fetch Error:", err); }
     };
     fetchInitialData();
   }, []);
 
+  // 🚀 INSTANT RANDOM PROPERTIES: Fill screen while AI is loading
+  useEffect(() => {
+    if (hasStarted && currentProperties.length === 0 && featuredProperties.length > 0) {
+      // Create a heavily duplicated and shuffled array for that "unlimited scrolling" feel
+      const extendedProperties = [...featuredProperties, ...featuredProperties].sort(() => 0.5 - Math.random());
+      setCurrentProperties(extendedProperties);
+    }
+  }, [hasStarted, currentProperties.length, featuredProperties]);
+
   useEffect(() => {
     if (chatScrollRef.current) chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-  }, [messages]);
+  }, [messages, isMobileChatOpen]);
 
   const handleVoiceInput = () => {
     if (!('webkitSpeechRecognition' in window)) { alert("Voice search is not supported in this browser. Try Chrome!"); return; }
@@ -130,7 +135,6 @@ export default function Home() {
     try {
       const res = await fetch("/api/gemini", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        // 🧠 Pass the Session ID into the payload
         body: JSON.stringify({ history: newMessages, sessionId: sessionId }),
       });
       const data = await res.json();
@@ -176,7 +180,6 @@ export default function Home() {
         {/* --- PRE-CHAT EXTENDED HOMEPAGE --- */}
         {!hasStarted && (
           <div className="w-full flex flex-col gap-16 animate-in fade-in duration-1000 delay-300 pb-24">
-
             {/* 🚀 DYNAMIC HOMEPAGE AD PLACEMENT */}
             {heroAd && (
               <div className="relative w-full h-32 md:h-48 rounded-3xl overflow-hidden border border-white/10 shadow-[0_0_40px_rgba(255,255,255,0.05)] group cursor-pointer animate-in zoom-in-95 duration-700">
@@ -221,7 +224,6 @@ export default function Home() {
                   <Link href="#" className="text-xs text-ai-light hover:text-white flex items-center gap-1 transition-colors">View All <ChevronRight className="w-3 h-3" /></Link>
                 </div>
                 <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar snap-x snap-mandatory">
-                  {/* 🚀 MAPPED FROM LIVE DATABASE - NOW CLICKABLE */}
                   {featuredProperties.map((prop) => (
                     <Link href={`/properties/${prop.id}`} key={prop.id} className="min-w-[280px] w-[280px] shrink-0 snap-start group block">
                       <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-gold/50 transition-colors cursor-pointer relative h-full">
@@ -242,7 +244,6 @@ export default function Home() {
             <div>
               <div className="flex items-center justify-between mb-6"><h3 className="text-2xl font-bold text-white flex items-center gap-2"><Building className="w-6 h-6 text-ai-light" /> Explore by Lifestyle</h3></div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* 🚀 MAPPED FROM LIVE CMS */}
                 {lifestyleCollections.map((collection) => (
                   <Link href={collection.targetUrl || "#"} key={collection.id}>
                     <div className="group relative h-72 rounded-3xl overflow-hidden cursor-pointer shadow-glass border border-white/10">
@@ -290,7 +291,6 @@ export default function Home() {
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                
                 <Link href="/heatmap" className="group">
                   <div className="bg-glass-gradient backdrop-blur-xl border border-white/10 p-6 rounded-3xl shadow-glass hover:border-ai/50 hover:shadow-[0_0_30px_rgba(139,92,246,0.15)] transition-all h-full">
                     <div className="w-12 h-12 bg-ai/20 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><MapIcon className="w-6 h-6 text-ai-light" /></div>
@@ -338,7 +338,6 @@ export default function Home() {
                     <p className="text-sm text-gray-400">Get direct support from our master admins for onboarding or premium B2B queries.</p>
                   </div>
                 </Link>
-
               </div>
             </div>
 
@@ -358,51 +357,79 @@ export default function Home() {
         {/* --- ACTIVE CHAT LAYOUT --- */}
         {hasStarted && (
           <div className="w-full flex flex-col lg:flex-row gap-6 items-start animate-in fade-in slide-in-from-bottom-4 duration-700">
+            
+            {/* 🚀 MOBILE FAB TOGGLE BUTTON */}
+            {!isMobileChatOpen && (
+              <button
+                onClick={() => setIsMobileChatOpen(true)}
+                className="lg:hidden fixed bottom-6 right-6 w-14 h-14 bg-ai text-white rounded-full shadow-[0_0_30px_rgba(139,92,246,0.6)] flex items-center justify-center z-[100] transition-transform hover:scale-105"
+              >
+                <Bot className="w-6 h-6" />
+              </button>
+            )}
+
             {/* Sticky Chat Container */}
-            <div className="w-full lg:w-1/3 bg-glass-gradient backdrop-blur-xl border border-white/10 rounded-3xl shadow-glass flex flex-col sticky top-24 self-start h-[80vh] overflow-hidden shrink-0">
-              <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-ai/20 rounded-full"><Bot className="w-5 h-5 text-ai-light" /></div>
-                  <div><h3 className="text-lg font-semibold text-white leading-tight">AI Advisor</h3><p className="text-xs text-emerald-light">Online • Lahore Expert</p></div>
+            <div className={`
+              ${isMobileChatOpen ? 'fixed inset-0 z-[100] p-4 pt-16 bg-brand-dark/20 backdrop-blur-md flex flex-col overflow-y-auto custom-scrollbar' : 'hidden lg:flex'}
+              w-full lg:w-1/3 lg:flex-col lg:gap-6 lg:sticky lg:top-24 lg:h-[calc(100vh-120px)] lg:p-0 lg:bg-transparent lg:z-40 shrink-0
+            `}>
+              
+              {/* Close button for Mobile */}
+              {isMobileChatOpen && (
+                 <div className="flex justify-end mb-2 lg:hidden shrink-0">
+                   <button onClick={() => setIsMobileChatOpen(false)} className="p-2 bg-brand-dark/40 rounded-full text-white hover:bg-brand-dark/60 transition-colors backdrop-blur-xl shadow-lg border border-white/10">
+                     <X className="w-6 h-6" />
+                   </button>
+                 </div>
+              )}
+
+              <div className="bg-brand-dark/40 lg:bg-brand-dark/70 backdrop-blur-xl lg:backdrop-blur-2xl border border-white/10 rounded-3xl shadow-glass flex flex-col flex-grow overflow-hidden shrink-0 ring-1 ring-white/20 min-h-[400px]">
+                <div className="flex items-center justify-between p-4 border-b border-white/10 bg-brand-dark/20 lg:bg-brand-dark/40">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-ai/20 rounded-full"><Bot className="w-5 h-5 text-ai-light" /></div>
+                    <div><h3 className="text-lg font-semibold text-white leading-tight">AI Advisor</h3><p className="text-xs text-emerald-light">Online • Lahore Expert</p></div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    {leadData && (
+                      <div className="hidden md:flex flex-col items-end text-xs text-gray-400">
+                        <span title="Secret B2B Lead Score" className="font-bold text-white">Score: {leadData.score}/100</span>
+                        <span className="text-gold-light">{leadData.extractedName ? `Lead: ${leadData.extractedName}` : 'Lead: Unnamed'}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                {leadData && (
-                  <div className="hidden md:flex flex-col items-end text-xs text-gray-400">
-                    <span title="Secret B2B Lead Score" className="font-bold text-white">Score: {leadData.score}/100</span>
-                    <span className="text-gold-light">{leadData.extractedName ? `Lead: ${leadData.extractedName}` : 'Lead: Unnamed'}</span>
-                  </div>
-                )}
-              </div>
 
-              <div ref={chatScrollRef} className="flex-grow overflow-y-auto p-4 flex flex-col gap-4 custom-scrollbar">
-                {messages.map((msg, idx) => (
-                  <div key={idx} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'user' ? 'bg-brand-light' : 'bg-ai/20'}`}>{msg.role === 'user' ?
-                      <User className="w-4 h-4 text-white" /> : <Bot className="w-4 h-4 text-ai-light" />}</div>
-                    <div className={`p-3 rounded-2xl max-w-[85%] text-sm md:text-base ${msg.role === 'user' ?
-                      'bg-brand-light text-white rounded-tr-none' : 'bg-white/5 text-gray-200 rounded-tl-none border border-white/5'}`}><p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p></div>
-                  </div>
-                ))}
-                {isLoading && (
-                  <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full bg-ai/20 flex items-center justify-center shrink-0"><Bot className="w-4 h-4 text-ai-light" /></div>
-                    <div className="p-4 rounded-2xl bg-white/5 rounded-tl-none border border-white/5 flex gap-2 items-center"><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce"></span><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce delay-75"></span><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce delay-150"></span></div>
-                  </div>
-                )}
-              </div>
+                <div ref={chatScrollRef} className="flex-grow overflow-y-auto p-4 flex flex-col gap-4 custom-scrollbar bg-transparent">
+                  {messages.map((msg, idx) => (
+                    <div key={idx} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-lg ${msg.role === 'user' ? 'bg-brand-light' : 'bg-ai/30 border border-ai/50'}`}>{msg.role === 'user' ?
+                        <User className="w-4 h-4 text-white" /> : <Bot className="w-4 h-4 text-ai-light" />}</div>
+                      <div className={`p-3 rounded-2xl max-w-[85%] text-sm md:text-base shadow-md ${msg.role === 'user' ?
+                        'bg-brand-light text-white rounded-tr-none' : 'bg-brand-dark/60 lg:bg-brand-dark/80 backdrop-blur-md text-gray-100 rounded-tl-none border border-white/10'}`}><p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p></div>
+                    </div>
+                  ))}
+                  {isLoading && (
+                    <div className="flex gap-3">
+                      <div className="w-8 h-8 rounded-full bg-ai/30 flex items-center justify-center shrink-0 border border-ai/50"><Bot className="w-4 h-4 text-ai-light" /></div>
+                      <div className="p-4 rounded-2xl bg-brand-dark/60 lg:bg-brand-dark/80 backdrop-blur-md rounded-tl-none border border-white/10 flex gap-2 items-center"><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce"></span><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce delay-75"></span><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce delay-150"></span></div>
+                    </div>
+                  )}
+                </div>
 
-              <form onSubmit={handleSubmit} className="p-4 bg-brand-dark/50 border-t border-white/10 flex gap-2 items-center">
-                <button type="button" onClick={handleVoiceInput} className={`p-2 rounded-full transition-all shrink-0 ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}><Mic className="w-5 h-5" /></button>
-                <input type="text" value={input} onChange={(e) => setInput(e.target.value)} disabled={isLoading} placeholder="Reply to AI..." className="flex-grow bg-white/5 border border-white/10 text-white placeholder-gray-400 text-sm rounded-full px-4 py-2.5 outline-none focus:border-ai/50 transition-colors disabled:opacity-50" />
-                <button type="submit" disabled={isLoading || !input.trim()} className="w-10 h-10 bg-ai hover:bg-ai-light text-white rounded-full flex items-center justify-center shrink-0 transition-colors disabled:opacity-50"><Send className="w-4 h-4" /></button>
-              </form>
+                <form onSubmit={handleSubmit} className="p-4 bg-brand-dark/30 lg:bg-brand-dark/60 border-t border-white/10 flex gap-2 items-center shrink-0">
+                  <button type="button" onClick={handleVoiceInput} className={`p-2 rounded-full transition-all shrink-0 ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-gray-300 hover:text-white hover:bg-white/10'}`}><Mic className="w-5 h-5" /></button>
+                  <input type="text" value={input} onChange={(e) => setInput(e.target.value)} disabled={isLoading} placeholder="Reply to AI..." className="flex-grow bg-white/10 border border-white/10 text-white placeholder-gray-300 text-sm rounded-full px-4 py-2.5 outline-none focus:border-ai/50 transition-colors disabled:opacity-50" />
+                  <button type="submit" disabled={isLoading || !input.trim()} className="w-10 h-10 bg-ai hover:bg-ai-light text-white rounded-full flex items-center justify-center shrink-0 transition-colors disabled:opacity-50 shadow-ai-glow"><Send className="w-4 h-4" /></button>
+                </form>
+              </div>
             </div>
 
-            {/* Right Area: Results & Ads */}
+            {/* Right Area: Results & Ads (Now designed to scroll smoothly forever) */}
             <div className="w-full lg:w-2/3 flex flex-col gap-4 pb-12">
 
               {/* 🚀 DYNAMIC SIDEBAR AD PLACEMENT */}
               {sidebarAd && (
-                <div className="w-full bg-[#162032] border border-white/10 rounded-2xl p-4 shadow-glass flex items-center gap-4 group cursor-pointer hover:border-blue-500/30 transition-colors">
+                <div className="w-full bg-[#162032]/80 backdrop-blur-md border border-white/10 rounded-2xl p-4 shadow-glass flex items-center gap-4 group cursor-pointer hover:border-blue-500/30 transition-colors">
                   <img src={sidebarAd.imageUrl} className="w-24 h-16 object-cover rounded-xl" alt="Sponsored" />
                   <div className="flex-grow">
                     <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Sponsored Partner</span>
@@ -412,7 +439,7 @@ export default function Home() {
                 </div>
               )}
 
-              {currentProperties.length > 0 && !isLoading && (
+              {currentProperties.length > 0 && (
                 <div className="flex justify-end mb-2">
                   <div className="bg-glass-gradient backdrop-blur-md border border-white/10 p-1 rounded-full flex gap-1">
                     <button onClick={() => setViewMode('list')} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${viewMode === 'list' ?
@@ -423,20 +450,21 @@ export default function Home() {
                 </div>
               )}
 
-              {currentProperties.length === 0 && isLoading && <div className="w-full h-64 border border-dashed border-white/20 rounded-3xl flex items-center justify-center text-gray-500">AI is analyzing the market for you...</div>}
+              {/* The "Loading" screen is now replaced instantly with properties above, but we keep this fallback just in case */}
+              {currentProperties.length === 0 && isLoading && <div className="w-full h-64 border border-dashed border-white/20 rounded-3xl flex items-center justify-center text-gray-500 bg-brand-dark/20 backdrop-blur-sm">AI is analyzing the market for you...</div>}
 
-              {viewMode === 'list' && currentProperties.map((prop) => (
-                <Link href={`/properties/${prop.id}`} key={prop.id} className="block">
+              {viewMode === 'list' && currentProperties.map((prop, idx) => (
+                <Link href={`/properties/${prop.id}`} key={`${prop.id}-${idx}`} className="block">
                   <div className={`group backdrop-blur-md border rounded-3xl overflow-hidden flex flex-col sm:flex-row transition-all duration-300 cursor-pointer ${prop.isFeatured ?
-                    'bg-gold/5 border-gold/40 shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:border-gold/70 hover:-translate-y-1' : 'bg-white/5 border-white/10 shadow-glass hover:border-ai/50 hover:-translate-y-1'}`}>
+                    'bg-gold/5 border-gold/40 shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:border-gold/70 hover:-translate-y-1' : 'bg-brand-dark/40 border-white/10 shadow-glass hover:border-ai/50 hover:-translate-y-1'}`}>
                     <div className="sm:w-2/5 h-48 sm:h-auto overflow-hidden relative shrink-0">
                       {prop.isFeatured && <div className="absolute top-3 left-3 z-20 bg-gold text-white text-[10px] uppercase font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-lg"><Star className="w-3 h-3 fill-current" /> Featured</div>}
                       <img src={prop.imageUrl} alt={prop.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     </div>
                     <div className="p-6 sm:w-3/5 flex flex-col justify-between">
-                      <div><h4 className={`text-xl font-bold mb-2 line-clamp-2 ${prop.isFeatured ? 'text-gold-light' : 'text-white'}`}>{prop.title}</h4><p className="text-emerald-light font-semibold text-lg mb-4">{prop.price}</p></div>
+                      <div><h4 className={`text-xl font-bold mb-2 line-clamp-2 ${prop.isFeatured ? 'text-gold-light' : 'text-white'}`}>{prop.title}</h4><p className="text-emerald-light font-semibold text-lg mb-4">{prop.price || (prop as any).priceFormatted}</p></div>
                       <div className="inline-flex items-center gap-2 bg-brand-light/50 border border-white/10 text-gray-300 px-3 py-1.5 rounded-full w-fit group-hover:bg-white/10 transition-colors"><Sparkles className={`w-4 h-4 shrink-0 ${prop.isFeatured ?
-                        'text-gold-light' : 'text-ai-light'}`} /><span className="text-sm font-medium">Match: {prop.matchScore}</span></div>
+                        'text-gold-light' : 'text-ai-light'}`} /><span className="text-sm font-medium">Match: Highly Relevant</span></div>
                     </div>
                   </div>
                 </Link>
@@ -447,12 +475,12 @@ export default function Home() {
                   <img src="https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&w=1200&auto=format&fit=crop" alt="Map View" className="w-full h-full object-cover opacity-30 grayscale contrast-150 mix-blend-screen" />
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(139,92,246,0.1)_0%,rgba(15,23,42,0.8)_100%)]"></div>
                   {currentProperties.slice(0, 5).map((prop, i) => (
-                    <div key={prop.id} className="absolute group cursor-pointer hover:z-50" style={{ top: `${20 + (i * 15)}%`, left: `${20 + (i * 12) + (i % 2 === 0 ? 20 : -10)}%` }}>
+                    <div key={`${prop.id}-${i}`} className="absolute group cursor-pointer hover:z-50" style={{ top: `${20 + (i * 15)}%`, left: `${20 + (i * 12) + (i % 2 === 0 ? 20 : -10)}%` }}>
                       <div className={`w-4 h-4 rounded-full shadow-lg border-2 border-brand-dark animate-pulse-slow ${prop.isFeatured ? 'bg-gold shadow-[0_0_15px_rgba(245,158,11,0.8)]' : 'bg-ai shadow-[0_0_15px_rgba(139,92,246,0.8)]'}`}></div>
                       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-48 bg-glass-gradient backdrop-blur-xl border border-white/10 rounded-xl p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-2xl">
                         <img src={prop.imageUrl} className="w-full h-16 object-cover rounded-md mb-2" />
                         <p className={`text-xs font-bold line-clamp-1 ${prop.isFeatured ? 'text-gold-light' : 'text-white'}`}>{prop.title}</p>
-                        <p className="text-emerald-400 text-xs font-semibold">{prop.price}</p>
+                        <p className="text-emerald-400 text-xs font-semibold">{prop.price || (prop as any).priceFormatted}</p>
                       </div>
                     </div>
                   ))}
