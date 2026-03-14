@@ -281,7 +281,7 @@ export default function CommandCenter() {
     try {
       const res = await fetch("/api/auth/logout", { method: "POST" });
       if (res.ok) {
-        window.location.href = "/login";
+        window.location.href = "/agency-login";
       }
     } catch (error) {
       console.error("Logout failed", error);

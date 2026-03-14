@@ -11,59 +11,55 @@ const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || "LPG_SUPER
 
 export async function POST(req: Request) {
   try {
-    const { email, password } = await req.json();
+    const { username, password } = await req.json();
 
-    if (!email || !password) {
-      return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
+    if (!username || !password) {
+      return NextResponse.json({ error: "Username and password required." }, { status: 400 });
     }
 
-    const rawInput = email.trim();
-    const lowerInput = email.toLowerCase().trim();
+    const safeInput = username.trim();
     const incomingPasswordHash = crypto.createHash('sha256').update(password).digest('hex');
 
     let foundUser = null;
     let isAgencyUser = false;
 
-    // 🚀 CRITICAL FIX 1: Case-Insensitive Search for Agency Staff
+    // 1. STRICT B2B CHECK: Search Agency Staff First (Case-Insensitive)
     foundUser = await prisma.agencyUser.findFirst({
       where: {
-        OR: [
-          { username: rawInput },
-          { username: lowerInput }
-        ]
+        OR: [{ username: safeInput }, { username: safeInput.toLowerCase() }]
       }
     });
 
     if (foundUser) {
       isAgencyUser = true;
     } else {
-      // 🛡️ Fallback to standard Investors if not found in Staff table
-      foundUser = await prisma.user.findFirst({
+      // 2. SECONDARY CHECK: Check Master User table (Only for Admins/Partners)
+      const masterUser = await prisma.user.findFirst({
         where: {
-          OR: [
-            { email: rawInput },
-            { email: lowerInput }
-          ]
+          OR: [{ email: safeInput }, { email: safeInput.toLowerCase() }]
         }
       });
+
+      if (masterUser && (masterUser.role === "AGENCY_PARTNER" || masterUser.role === "MASTER_ADMIN")) {
+        foundUser = masterUser;
+      }
     }
 
-    // 🛑 Final Rejection
     if (!foundUser) {
-      return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
+      return NextResponse.json({ error: "Invalid B2B credentials or unauthorized access." }, { status: 401 });
     }
 
-    // 🔐 Secure Password Verification
-    const isMatch = incomingPasswordHash === foundUser.passwordHash;
-
-    if (!isMatch) {
-      return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
+    if (incomingPasswordHash !== foundUser.passwordHash) {
+      return NextResponse.json({ error: "Invalid password." }, { status: 401 });
     }
 
-    // 📝 Construct JWT Payload
+    // 🚀 THE GHOST BYPASS MAGIC
+    // We set the main 'role' to AGENCY_PARTNER to slip past the 307 Server Redirect trap.
+    // We save their REAL role in 'trueAgencyRole' to restrict their UI later.
     const tokenPayload = {
       userId: foundUser.id,
-      role: foundUser.role || (isAgencyUser ? "CALLER" : "USER"), // Fallback safety
+      role: isAgencyUser ? "AGENCY_PARTNER" : foundUser.role, // The VIP Pass
+      trueAgencyRole: isAgencyUser ? foundUser.role : foundUser.role, // The True Identity
       name: isAgencyUser ? (foundUser as any).username : (foundUser as any).name,
       agencyName: foundUser.agencyName || "LPG Network",
       isSubAgent: isAgencyUser,
@@ -76,20 +72,11 @@ export async function POST(req: Request) {
       .setExpirationTime("24h")
       .sign(JWT_SECRET);
 
-    // 🔀 BULLETPROOF ROUTING
-    let redirectUrl = "/user-dashboard"; // Default for standard investors
-    
-    if (foundUser.role === "MASTER_ADMIN") {
-      redirectUrl = "/command-center";
-    } else if (isAgencyUser || ["AGENCY_PARTNER", "EXECUTIVE", "CALLER"].includes(foundUser.role)) {
-      // ANY agency staff gets the B2B dashboard
-      redirectUrl = "/dashboard";
-    }
+    const finalRedirect = foundUser.role === "MASTER_ADMIN" ? "/command-center" : "/dashboard";
 
     const response = NextResponse.json({
       success: true,
-      role: foundUser.role,
-      redirectUrl: redirectUrl
+      redirectUrl: finalRedirect
     });
 
     response.cookies.set({
@@ -105,7 +92,7 @@ export async function POST(req: Request) {
     return response;
 
   } catch (error) {
-    console.error("Auth API Error:", error);
+    console.error("Agency Auth API Error:", error);
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }

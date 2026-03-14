@@ -15,10 +15,25 @@ interface Property {
   installmentPlan?: string; agencyName: string; 
 }
 
-// Dynamic Formatter Helper
+// Dynamic Formatter Helper (Short)
 const formatPKR = (value: number) => {
   if (value >= 10000000) return `${(value / 10000000).toFixed(1)} Cr`;
   if (value >= 100000) return `${(value / 100000).toFixed(1)} L`;
+  return value.toLocaleString();
+};
+
+// 🚀 NEW: Full Word Formatter (8 Crore 50 Lakhs)
+const formatFullPKR = (value: number) => {
+  if (value >= 10000000) {
+    const crores = Math.floor(value / 10000000);
+    const lakhs = Math.floor((value % 10000000) / 100000);
+    return lakhs > 0 ? `${crores} Crore ${lakhs} Lakhs` : `${crores} Crore`;
+  }
+  if (value >= 100000) {
+    const lakhs = Math.floor(value / 100000);
+    const thousands = Math.floor((value % 100000) / 1000);
+    return thousands > 0 ? `${lakhs} Lakhs ${thousands} Thousand` : `${lakhs} Lakhs`;
+  }
   return value.toLocaleString();
 };
 
@@ -58,6 +73,16 @@ export default function PropertyDetailPage() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const chatScrollRef = useRef<HTMLDivElement>(null);
+
+  // 🚀 CRITICAL MOBILE FIX: Lock body scroll globally when mobile chat is open
+  useEffect(() => {
+    if (isMobileChatOpen) {
+      document.body.classList.add('chat-locked');
+    } else {
+      document.body.classList.remove('chat-locked');
+    }
+    return () => document.body.classList.remove('chat-locked');
+  }, [isMobileChatOpen]);
 
   // 1. Fetch Live Property, Session Memory, Saved Status & User Auth
   useEffect(() => {
@@ -107,9 +132,18 @@ export default function PropertyDetailPage() {
     initPage();
   }, [propertyId]);
 
+  // 🚀 FIX 1: SMART SCROLL LOGIC
   useEffect(() => {
-    if (chatScrollRef.current) chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-  }, [messages, isMobileChatOpen]);
+    if (chatScrollRef.current && messages.length > 0) {
+      const userMessages = chatScrollRef.current.querySelectorAll('.user-message-marker');
+      if (userMessages.length > 0) {
+        const lastUserMessage = userMessages[userMessages.length - 1];
+        lastUserMessage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+      }
+    }
+  }, [messages, isMobileChatOpen, isLoading]);
 
   const toggleSave = async () => {
     const previousState = isSaved;
@@ -217,40 +251,67 @@ export default function PropertyDetailPage() {
   const galleryImages = property.imageUrls && property.imageUrls.length > 0 ? property.imageUrls : [property.imageUrl];
 
   return (
+    // 🚀 FIX: Removed overflow-x-hidden so position:sticky works natively again
     <div className="min-h-screen bg-brand-dark font-sans text-white pb-20">
       <GlobalHeader />
 
       <div className="max-w-7xl mx-auto px-6 pt-32 space-y-8 relative">
         <div className="fixed inset-0 pointer-events-none z-0"><img src="https://images.unsplash.com/photo-1627883216894-f20387438c7f?q=80&w=2000&auto=format&fit=crop" alt="Lahore Skyline" className="w-full h-full object-cover opacity-5 mix-blend-overlay" /></div>
 
+        {/* GLOBAL MOBILE FAB (HEAVY GLOW) */}
+        {!isMobileChatOpen && (
+          <button
+            onClick={() => setIsMobileChatOpen(true)}
+            className="lg:hidden fixed bottom-6 right-6 w-16 h-16 bg-ai text-white rounded-full shadow-[0_0_50px_rgba(139,92,246,0.9)] flex items-center justify-center z-[9999] transition-all hover:scale-110 ring-4 ring-ai/40 animate-[pulse_1.5s_ease-in-out_infinite]"
+          >
+            <Bot className="w-8 h-8" />
+            <span className="absolute top-0 right-1 w-4 h-4 bg-emerald-400 border-2 border-brand-dark rounded-full"></span>
+          </button>
+        )}
+
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-4 text-sm font-bold uppercase tracking-widest">
               <ArrowLeft className="w-4 h-4" /> Back to Search
             </button>
-            <div className="flex items-center gap-3 mb-2">
-              <span className="bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-500/30">
+            
+            {/* 🚀 UPGRADE: Highlighted Categories & Glowing Borders */}
+            <div className="flex items-center gap-3 mb-4">
+              <span className="bg-emerald-500/20 text-emerald-300 px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest border border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
                 {property.purpose === 'buy' ? 'For Sale' : 'For Rent'}
               </span>
-              <span className="bg-white/10 text-gray-300 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10">
+              <span className="bg-blue-500/20 text-blue-300 px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest border border-blue-500/40 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
                 {property.category} • {property.subCategory}
               </span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-tight">{property.title}</h1>
-            <p className="text-gray-400 flex items-center gap-2 mt-3 text-lg"><MapPin className="w-5 h-5 text-emerald-500" /> {property.location}, {property.city}</p>
+            
+            <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-tight drop-shadow-lg">{property.title}</h1>
+            
+            {/* 🚀 UPGRADE: Bright, bold location pointer */}
+            <p className="text-gray-100 flex items-center gap-2 mt-4 text-xl font-semibold">
+              <MapPin className="w-6 h-6 text-emerald-400 drop-shadow-[0_0_10px_rgba(16,185,129,0.8)]" /> 
+              <span className="drop-shadow-md">{property.location}, {property.city}</span>
+            </p>
           </div>
 
-          <div className="flex flex-col items-end gap-4">
-            <h2 className="text-4xl md:text-5xl font-black text-emerald-400 font-mono tracking-tighter">{property.priceFormatted}</h2>
+          <div className="flex flex-col items-end gap-4 mt-4 md:mt-0">
+            {/* 🚀 UPGRADE: Glowing Price Box with Full Word Algorithm */}
+            <div className="bg-emerald-500/10 backdrop-blur-xl border border-emerald-500/40 p-4 md:p-5 rounded-3xl shadow-[0_0_40px_rgba(16,185,129,0.2)] flex flex-col items-end">
+              <span className="text-[10px] text-emerald-200 font-black uppercase tracking-widest mb-1 opacity-80">Asking Price</span>
+              <h2 className="text-3xl md:text-4xl font-black text-emerald-400 tracking-tighter drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]">
+                {property.price ? formatFullPKR(property.price) : property.priceFormatted}
+              </h2>
+            </div>
+            
             <div className="flex items-center gap-3">
-              <button onClick={toggleSave} className={`p-3 rounded-full border transition-all ${isSaved ? 'bg-red-500/20 border-red-500/50 text-red-500' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}>
-                <Heart className={`w-5 h-5 ${isSaved ? 'fill-current' : ''}`} />
+              <button onClick={toggleSave} className={`p-4 rounded-full border transition-all shadow-lg ${isSaved ? 'bg-red-500/20 border-red-500/50 text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.3)]' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'}`}>
+                <Heart className={`w-6 h-6 ${isSaved ? 'fill-current' : ''}`} />
               </button>
             </div>
           </div>
         </div>
 
-        <div className="w-full flex flex-col lg:flex-row gap-6 items-start relative z-10">
+        <div className="w-full flex flex-col lg:flex-row gap-6 items-start relative z-[100]">
 
           {/* LEFT COLUMN */}
           <div className="w-full lg:w-2/3 flex flex-col gap-6">
@@ -484,37 +545,25 @@ export default function PropertyDetailPage() {
 
           </div>
 
-          {/* 🚀 MOBILE FAB TOGGLE BUTTON */}
-          {!isMobileChatOpen && (
-            <button
-              onClick={() => setIsMobileChatOpen(true)}
-              className="lg:hidden fixed bottom-6 right-6 w-14 h-14 bg-ai text-white rounded-full shadow-[0_0_30px_rgba(139,92,246,0.6)] flex items-center justify-center z-100 transition-transform hover:scale-105"
-            >
-              <Bot className="w-6 h-6" />
-            </button>
-          )}
-
-          {/* RIGHT COLUMN: Chatbot & Sidebar Elements (Now strictly bounded & sticky) */}
+          {/* 🚀 RIGHT COLUMN: Chatbot (Pure Glass & Secure Header) */}
           <div className={`
-            ${isMobileChatOpen ? 'fixed inset-0 z-[100] p-4 pt-16 bg-brand-dark/20 backdrop-blur-md flex flex-col' : 'hidden lg:flex'}
-            w-full lg:w-1/3 lg:flex-col lg:sticky lg:top-24 lg:h-[calc(100vh-120px)] lg:p-0 lg:bg-transparent lg:z-10
+            ${isMobileChatOpen ? 'fixed inset-0 z-[9999] p-4 pt-16 flex flex-col bg-slate-900/40 backdrop-blur-md' : 'hidden lg:flex'}
+            w-full lg:w-1/3 lg:flex-col lg:sticky lg:top-24 lg:h-[calc(100vh-120px)] lg:p-0 lg:bg-transparent lg:z-40
           `}>
 
-            {/* Close button for Mobile */}
-            {isMobileChatOpen && (
-               <div className="flex justify-end mb-2 lg:hidden shrink-0">
-                 <button onClick={() => setIsMobileChatOpen(false)} className="p-2 bg-brand-dark/40 rounded-full text-white hover:bg-brand-dark/60 transition-colors backdrop-blur-xl shadow-lg border border-white/10">
-                   <X className="w-6 h-6" />
-                 </button>
-               </div>
-            )}
+            <div className="bg-white/5 lg:bg-slate-900/30 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-glass flex flex-col h-full overflow-hidden ring-1 ring-white/20">
 
-            {/* Chat Box Container */}
-            <div className="bg-brand-dark/40 lg:bg-brand-dark/70 backdrop-blur-xl lg:backdrop-blur-2xl border border-white/10 rounded-3xl shadow-glass flex flex-col grow overflow-hidden ring-1 ring-white/20">
-              <div className="flex items-center justify-between p-4 border-b border-white/10 bg-brand-dark/20 lg:bg-brand-dark/40 shrink-0">
+              <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5 shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-ai/20 rounded-full relative"><Bot className="w-5 h-5 text-ai-light" /><span className="absolute top-0 right-0 w-2 h-2 bg-emerald-400 rounded-full animate-pulse border border-brand-dark"></span></div>
+                  <div className="p-2 bg-ai/20 rounded-full relative"><Bot className="w-5 h-5 text-ai-light" /><span className="absolute top-0 right-0 w-2 h-2 bg-emerald-400 rounded-full animate-pulse border border-slate-900"></span></div>
                   <div><h3 className="text-lg font-semibold text-white leading-tight">AI Concierge</h3><p className="text-xs text-emerald-light">Instantly Available</p></div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  {/* The new Safe Mobile [X] Button */}
+                  <button onClick={() => setIsMobileChatOpen(false)} className="lg:hidden p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors border border-white/10">
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
               </div>
 
@@ -526,18 +575,18 @@ export default function PropertyDetailPage() {
                   </div>
                 )}
                 {messages.map((msg, idx) => (
-                  <div key={idx} className={`flex flex-col gap-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                  <div key={idx} className={`flex flex-col gap-2 ${msg.role === 'user' ? 'items-end user-message-marker' : 'items-start'}`}>
                     <div className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-lg ${msg.role === 'user' ?
                         'bg-brand-light' : 'bg-ai/30 border border-ai/50'}`}>{msg.role === 'user' ? <User className="w-4 h-4 text-white" /> : <Bot className="w-4 h-4 text-ai-light" />}</div>
                       <div className={`p-3 rounded-2xl max-w-[85%] text-sm md:text-base shadow-md ${msg.role === 'user' ?
-                        'bg-brand-light text-white rounded-tr-none' : 'bg-brand-dark/60 lg:bg-brand-dark/80 backdrop-blur-md text-gray-100 rounded-tl-none border border-white/10'}`}><p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p></div>
+                        'bg-brand-light text-white rounded-tr-none' : 'bg-white/10 backdrop-blur-md text-gray-100 rounded-tl-none border border-white/10'}`}><p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p></div>
                     </div>
 
                     {msg.recommendedProperties && msg.recommendedProperties.length > 0 && (
                       <div className="flex flex-col gap-3 mt-2 pl-11 w-full max-w-[90%]">
                         {msg.recommendedProperties.map((recProp: any) => (
-                          <Link href={`/properties/${recProp.id}`} key={recProp.id} className="w-full bg-brand-dark/60 lg:bg-brand-dark/80 backdrop-blur-md border border-white/10 rounded-xl overflow-hidden hover:border-ai/50 transition-colors flex items-center group">
+                          <Link href={`/properties/${recProp.id}`} key={recProp.id} className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-xl overflow-hidden hover:border-ai/50 transition-colors flex items-center group">
                             <img src={recProp.imageUrl} className="w-20 h-20 object-cover shrink-0 group-hover:scale-105 transition-transform" alt="prop" />
                             <div className="p-3 flex-grow">
                               <h4 className="text-white text-xs font-bold line-clamp-1 mb-1">{recProp.title}</h4>
@@ -549,10 +598,10 @@ export default function PropertyDetailPage() {
                     )}
                   </div>
                 ))}
-                {isLoading && <div className="flex gap-3"><div className="w-8 h-8 rounded-full bg-ai/30 flex items-center justify-center border border-ai/50 shrink-0"><Bot className="w-4 h-4 text-ai-light" /></div><div className="p-4 rounded-2xl bg-brand-dark/60 lg:bg-brand-dark/80 backdrop-blur-md rounded-tl-none border border-white/10 flex gap-2 items-center"><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce"></span><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce delay-75"></span><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce delay-150"></span></div></div>}
+                {isLoading && <div className="flex gap-3"><div className="w-8 h-8 rounded-full bg-ai/30 flex items-center justify-center border border-ai/50 shrink-0"><Bot className="w-4 h-4 text-ai-light" /></div><div className="p-4 rounded-2xl bg-white/10 backdrop-blur-md rounded-tl-none border border-white/10 flex gap-2 items-center"><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce"></span><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce delay-75"></span><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce delay-150"></span></div></div>}
               </div>
 
-              <form onSubmit={handleSubmit} className="p-4 bg-brand-dark/30 lg:bg-brand-dark/60 border-t border-white/10 flex gap-2 items-center shrink-0">
+              <form onSubmit={handleSubmit} className="p-4 bg-white/5 border-t border-white/10 flex gap-2 items-center shrink-0">
                 <input type="text" value={input} onChange={(e) => setInput(e.target.value)} disabled={isLoading} placeholder="Ask to schedule a viewing..." className="grow bg-white/10 border border-white/10 text-white placeholder-gray-300 text-sm rounded-full px-4 py-3 outline-none focus:border-ai/50 transition-colors disabled:opacity-50" />
                 <button type="submit" disabled={isLoading || !input.trim()} className="w-12 h-12 bg-ai hover:bg-ai-light text-white rounded-full flex items-center justify-center shrink-0 transition-colors disabled:opacity-50 shadow-ai-glow"><Send className="w-5 h-5 ml-1" /></button>
               </form>
@@ -560,7 +609,7 @@ export default function PropertyDetailPage() {
           </div>
         </div>
 
-        {/* BOTTOM SLIDER: Recommended Properties */}
+        {/* 🚀 UPGRADE: Recommended Properties Prices Now Use Full Formulation */}
         {similarProperties.length > 0 && (
           <div className="w-full mt-12 pt-8 border-t border-white/10 relative z-20 bg-brand-dark">
             <h2 className="text-2xl font-bold text-white flex items-center gap-2 mb-6"><Sparkles className="w-6 h-6 text-emerald-400" /> Recommended {property.category}s in {property.location}</h2>
@@ -577,7 +626,9 @@ export default function PropertyDetailPage() {
                       <h4 className="text-lg font-bold text-white line-clamp-1 mb-1 group-hover:text-emerald-400 transition-colors">{simProp.title}</h4>
                       <p className="text-gray-400 text-xs mb-3 flex items-center gap-1"><MapPin className="w-3 h-3" />{simProp.location}</p>
                       <div className="flex items-center justify-between pt-3 border-t border-white/10">
-                        <p className={`font-extrabold text-lg ${simProp.purpose === 'buy' ? 'text-emerald-400' : 'text-ai-light'}`}>{simProp.priceFormatted}</p>
+                        <p className={`font-extrabold text-lg ${simProp.purpose === 'buy' ? 'text-emerald-400' : 'text-ai-light'}`}>
+                          {simProp.price ? formatFullPKR(simProp.price) : simProp.priceFormatted}
+                        </p>
                         <span className="text-white bg-white/10 p-2 rounded-full group-hover:bg-emerald-500 group-hover:text-brand-dark transition-colors"><ArrowRight className="w-4 h-4" /></span>
                       </div>
                     </div>

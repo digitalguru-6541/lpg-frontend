@@ -28,20 +28,27 @@ export default function GlobalHeader() {
       }
     };
     fetchAuth();
-  }, [pathname]); 
+  }, [pathname]);
 
+  // 🚀 CRITICAL FIX: Ensure Sub-Agents are routed to the correct B2B Dashboard
   const getDashboardLink = () => {
     if (!activeUser) return "/login";
     if (activeUser.role === "MASTER_ADMIN") return "/command-center";
-    if (activeUser.role === "AGENCY_PARTNER") return "/dashboard";
+    if (
+      activeUser.role === "AGENCY_PARTNER" || 
+      activeUser.role === "EXECUTIVE" || 
+      activeUser.role === "CALLER"
+    ) return "/dashboard";
+    
+    // Fallback for regular investors
     return "/user-dashboard";
   };
 
   // Hide this header entirely inside Dashboards and Login Page
   if (
-    pathname.includes('/dashboard') || 
-    pathname.includes('/command-center') || 
-    pathname.includes('/user-dashboard') || 
+    pathname.includes('/dashboard') ||
+    pathname.includes('/command-center') ||
+    pathname.includes('/user-dashboard') ||
     pathname.includes('/login')
   ) {
     return null;
@@ -49,7 +56,7 @@ export default function GlobalHeader() {
 
   return (
     <header className="absolute top-0 inset-x-0 z-[100] h-24 bg-brand-dark/80 backdrop-blur-xl border-b border-white/5 flex items-center justify-between px-6 md:px-12 transition-all">
-      
+
       {/* 1. Brand Logo */}
       <Link href="/" className="text-xl md:text-2xl font-extrabold text-white tracking-tighter hover:opacity-80 transition-opacity">
         LahorePropertyGuide<span className="text-ai-light">.com</span>
@@ -57,7 +64,7 @@ export default function GlobalHeader() {
 
       {/* Right Side: Nav & Auth */}
       <div className="flex items-center gap-6 md:gap-8">
-        
+
         {/* 2. LIVE Navigation Links */}
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-400">
           <Link href="/projects" className="hover:text-white transition-colors">Projects</Link>

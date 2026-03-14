@@ -20,13 +20,15 @@ export async function GET() {
       user: {
         id: payload.userId,
         name: payload.name,
-        role: payload.role,
-        agencyName: payload.agencyName
+        username: payload.name,
+        // 🚀 DECODE THE GHOST BYPASS: Feed the frontend the true role
+        role: payload.trueAgencyRole || payload.role,
+        agencyName: payload.agencyName,
+        isSubAgent: payload.isSubAgent || false
       }
     }, { status: 200 });
 
   } catch (error) {
-    // If token is invalid or expired
     return NextResponse.json({ isLoggedIn: false }, { status: 200 });
   }
 }

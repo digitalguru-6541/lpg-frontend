@@ -58,3 +58,21 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(139, 92, 246, 0.6);
 }
+
+@layer components {
+  /* 🚀 GLOBAL FIX: Mobile chat structural lock + RESTORED GLASS EFFECT */
+  .global-mobile-chat {
+    position: fixed !important;
+    inset: 0 !important;
+    height: 100dvh !important; 
+    z-index: 99999 !important; 
+    background-color: rgba(15, 23, 42, 0.3) !important; /* Dropped from 0.98 to 0.3 for pure glass */
+    backdrop-filter: blur(16px) !important; /* Heavy frost to scramble anything behind it */
+  }
+
+  /* 🚀 GLOBAL FIX: Freezes the background website when chat is open */
+  body.chat-locked {
+    overflow: hidden !important;
+    touch-action: none !important; 
+  }
+}

@@ -6,7 +6,7 @@ import Link from "next/link";
 
 export default function UserDashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'saved' | 'inquiries'>('overview');
-  
+
   // 🚀 LIVE DATA STATES
   const [user, setUser] = useState<{name: string, email: string} | null>(null);
   const [savedProperties, setSavedProperties] = useState<any[]>([]);
@@ -17,6 +17,23 @@ export default function UserDashboard() {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
+        // 🚀 THE INTERCEPTOR: Check if an Agency Staff accidentally landed here!
+        const authRes = await fetch('/api/auth/me');
+        if (authRes.ok) {
+          const authData = await authRes.json();
+          if (authData.isLoggedIn) {
+            const role = authData.user?.role?.toUpperCase();
+            if (role === "MASTER_ADMIN") {
+              window.location.href = "/command-center";
+              return;
+            } else if (["AGENCY_PARTNER", "EXECUTIVE", "CALLER"].includes(role)) {
+              window.location.href = "/dashboard";
+              return;
+            }
+          }
+        }
+
+        // If they are a normal investor, proceed as usual:
         const res = await fetch('/api/user/profile');
         if (res.ok) {
           const data = await res.json();
@@ -41,7 +58,7 @@ export default function UserDashboard() {
     try {
       const res = await fetch("/api/auth/logout", { method: "POST" });
       if (res.ok) {
-        window.location.href = "/login"; 
+        window.location.href = "/login";
       }
     } catch (error) {
       console.error("Logout failed", error);
@@ -52,7 +69,7 @@ export default function UserDashboard() {
   const handleUnsaveProperty = async (propertyId: string) => {
     // Optimistic UI Update for snappy feel
     setSavedProperties(savedProperties.filter(p => p.id !== propertyId));
-    
+
     try {
       await fetch('/api/user/saved-properties', {
         method: 'DELETE',
@@ -101,19 +118,22 @@ export default function UserDashboard() {
             </div>
           </div>
         </div>
-        
+
         <nav className="flex-1 p-6 flex flex-col gap-3">
-          <button onClick={() => setActiveTab('overview')} className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all w-full text-left font-medium ${activeTab === 'overview' ? 'bg-white/10 text-white shadow-inner border border-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+          <button onClick={() => setActiveTab('overview')} className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all w-full text-left font-medium ${activeTab === 'overview' ?
+            'bg-white/10 text-white shadow-inner border border-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
             <LayoutDashboard className="w-5 h-5" /> Overview
           </button>
-          <button onClick={() => setActiveTab('saved')} className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all w-full text-left font-medium ${activeTab === 'saved' ? 'bg-white/10 text-white shadow-inner border border-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+          <button onClick={() => setActiveTab('saved')} className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all w-full text-left font-medium ${activeTab === 'saved' ?
+            'bg-white/10 text-white shadow-inner border border-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
             <Heart className="w-5 h-5" /> Saved Properties
           </button>
-          <button onClick={() => setActiveTab('inquiries')} className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all w-full text-left font-medium ${activeTab === 'inquiries' ? 'bg-white/10 text-white shadow-inner border border-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+          <button onClick={() => setActiveTab('inquiries')} className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all w-full text-left font-medium ${activeTab === 'inquiries' ?
+            'bg-white/10 text-white shadow-inner border border-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
             <MessageSquare className="w-5 h-5" /> My AI Inquiries
           </button>
         </nav>
-        
+
         <div className="p-6 border-t border-white/10">
           <button onClick={handleLogout} className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300 transition-colors w-full px-4 py-2 group">
             <LogOut className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Sign Out
@@ -132,7 +152,7 @@ export default function UserDashboard() {
         </header>
 
         <div className="p-8 max-w-6xl">
-          
+
           {/* TAB: OVERVIEW */}
           {activeTab === 'overview' && (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -192,14 +212,14 @@ export default function UserDashboard() {
                   <Link href="/search" className="text-ai-light hover:underline mt-2 inline-block">Browse available inventory</Link>
                 </div>
               )}
-              
+
               {savedProperties.map((prop) => (
                 <div key={prop.id} className="bg-glass-gradient backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden group">
                   <div className="h-48 overflow-hidden relative">
                     <img src={prop.imageUrl} alt={prop.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                     
                     {/* 🚀 UNSAVE BUTTON */}
-                    <button 
+                    <button
                       onClick={() => handleUnsaveProperty(prop.id)}
                       title="Remove from Saved"
                       className="absolute top-4 right-4 p-2 bg-brand-dark/50 backdrop-blur-md rounded-full border border-white/20 hover:bg-red-500/20 transition-colors"
@@ -211,7 +231,7 @@ export default function UserDashboard() {
                     <h4 className="text-xl font-bold text-white mb-2 line-clamp-1">{prop.title}</h4>
                     <p className="text-emerald-400 font-extrabold text-lg mb-1">{prop.priceFormatted}</p>
                     <p className="text-xs text-gray-400 mb-5 flex items-center gap-1"><MapPin className="w-3 h-3" /> {prop.location}, {prop.city}</p>
-                    
+
                     <div className="flex gap-3">
                       <Link href={`/properties/${prop.id}`} className="flex-1 py-3 bg-white/10 hover:bg-white/20 text-white text-center rounded-xl text-sm font-bold transition-colors">View Details</Link>
                       <button className="flex-1 py-3 bg-ai hover:bg-ai-light text-white text-center rounded-xl text-sm font-bold transition-colors shadow-ai-glow">Contact Agent</button>
@@ -242,7 +262,7 @@ export default function UserDashboard() {
                   <div className="absolute top-0 right-0 bg-white/5 border-b border-l border-white/10 px-4 py-2 rounded-bl-2xl text-[10px] font-mono text-gray-500 uppercase tracking-widest">
                     ID: {inq.id.substring(0,8).toUpperCase()}
                   </div>
-                  
+
                   <div className="flex-1 space-y-4">
                     <div className="flex items-center gap-3">
                       <div className="p-2.5 bg-ai/10 rounded-xl border border-ai/20"><MessageSquare className="w-5 h-5 text-ai-light" /></div>

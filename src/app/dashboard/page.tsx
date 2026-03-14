@@ -694,7 +694,7 @@ export default function PartnerDashboard() {
   const handleLogout = async () => {
     try {
       const res = await fetch("/api/auth/logout", { method: "POST" });
-      if (res.ok) window.location.href = "/login";
+      if (res.ok) window.location.href = "/agency-login";
     } catch (error) {
       console.error("Logout failed", error);
     }

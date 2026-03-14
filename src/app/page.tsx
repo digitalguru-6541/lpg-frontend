@@ -41,9 +41,18 @@ export default function Home() {
 
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
+  // 🚀 CRITICAL MOBILE FIX: Lock body scroll globally when mobile chat is open
+  useEffect(() => {
+    if (isMobileChatOpen) {
+      document.body.classList.add('chat-locked');
+    } else {
+      document.body.classList.remove('chat-locked');
+    }
+    return () => document.body.classList.remove('chat-locked');
+  }, [isMobileChatOpen]);
+
   // 1. Fetch Session Memory & Live Database Data on Load
   useEffect(() => {
-    // 🧠 1. Get or Create Persistent Session ID
     let currentSessionId = localStorage.getItem("lpg_session_id");
     if (!currentSessionId) {
       currentSessionId = "session_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
@@ -51,7 +60,6 @@ export default function Home() {
     }
     setSessionId(currentSessionId);
 
-    // 🧠 2. Fetch Database Chat Memory
     const fetchChatMemory = async () => {
       try {
         const res = await fetch(`/api/gemini?sessionId=${currentSessionId}`);
@@ -66,11 +74,9 @@ export default function Home() {
     };
     fetchChatMemory();
 
-    // 3. Load UI states
     const savedProps = sessionStorage.getItem("lpg_current_props");
     if (savedProps) { setCurrentProperties(JSON.parse(savedProps)); }
 
-    // 🚀 Unified Data Fetch (Ads, Inventory, Lifestyles)
     const fetchInitialData = async () => {
       try {
         const resAds = await fetch('/api/ads');
@@ -99,7 +105,6 @@ export default function Home() {
     fetchInitialData();
   }, []);
 
-  // 🚀 INSTANT RANDOM PROPERTIES: Fill screen while AI is loading
   useEffect(() => {
     if (hasStarted && currentProperties.length === 0 && featuredProperties.length > 0) {
       const extendedProperties = [...featuredProperties, ...featuredProperties].sort(() => 0.5 - Math.random());
@@ -107,9 +112,18 @@ export default function Home() {
     }
   }, [hasStarted, currentProperties.length, featuredProperties]);
 
+  // 🚀 FIX 1: SMART SCROLL LOGIC
   useEffect(() => {
-    if (chatScrollRef.current) chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-  }, [messages, isMobileChatOpen]);
+    if (chatScrollRef.current && messages.length > 0) {
+      const userMessages = chatScrollRef.current.querySelectorAll('.user-message-marker');
+      if (userMessages.length > 0) {
+        const lastUserMessage = userMessages[userMessages.length - 1];
+        lastUserMessage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+      }
+    }
+  }, [messages, isMobileChatOpen, isLoading]);
 
   const handleVoiceInput = () => {
     if (!('webkitSpeechRecognition' in window)) { alert("Voice search is not supported in this browser. Try Chrome!"); return; }
@@ -151,8 +165,19 @@ export default function Home() {
   };
 
   return (
-    <div className="relative w-full min-h-screen flex flex-col items-center justify-start pt-24 pb-0 px-4 md:px-8">
+    <div className="relative w-full min-h-screen flex flex-col items-center justify-start pt-24 pb-0 px-4 md:px-8 overflow-x-hidden">
       <div className="fixed inset-0 bg-brand-dark z-0"><img src="https://images.unsplash.com/photo-1627883216894-f20387438c7f?q=80&w=2000&auto=format&fit=crop" alt="Lahore Skyline" className="w-full h-full object-cover opacity-10 mix-blend-overlay fixed" /></div>
+
+      {/* GLOBAL MOBILE FAB (HEAVY GLOW) */}
+      {!isMobileChatOpen && (
+        <button
+          onClick={() => { setIsMobileChatOpen(true); setHasStarted(true); }}
+          className="lg:hidden fixed bottom-6 right-6 w-16 h-16 bg-ai text-white rounded-full shadow-[0_0_50px_rgba(139,92,246,0.9)] flex items-center justify-center z-[99999] transition-all hover:scale-110 ring-4 ring-ai/40 animate-[pulse_1.5s_ease-in-out_infinite]"
+        >
+          <Bot className="w-8 h-8" />
+          <span className="absolute top-0 right-1 w-4 h-4 bg-emerald-400 border-2 border-brand-dark rounded-full"></span>
+        </button>
+      )}
 
       <div className="z-10 w-full max-w-7xl flex flex-col items-center flex-grow">
         <div className={`text-center transition-all duration-700 ${hasStarted ? 'mb-6 scale-90 hidden md:block' : 'mt-12 mb-10 scale-100'}`}>
@@ -164,11 +189,11 @@ export default function Home() {
           <div className="w-full max-w-3xl flex flex-col items-center mb-16 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <form onSubmit={handleSubmit} className="w-full bg-glass-gradient backdrop-blur-md shadow-glass border border-white/10 rounded-full p-2 flex items-center transition-all duration-500 focus-within:shadow-ai-glow focus-within:border-ai/50 mb-6">
               <div className="pl-6 pr-4 text-ai-light"><Sparkles className="w-6 h-6 animate-pulse-slow" /></div>
-              <input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type or speak your requirements..." className="flex-grow bg-transparent text-white placeholder-gray-400 text-lg outline-none py-4" />
+              <input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type or speak your requirements..." className="flex-grow bg-transparent text-white placeholder-gray-400 text-lg outline-none py-4 w-full" />
               <button type="button" onClick={handleVoiceInput} className={`p-4 mr-2 rounded-full transition-all ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'hover:bg-white/5 text-gray-400 hover:text-white'}`}><Mic className="w-5 h-5" /></button>
               <button type="submit" disabled={!input.trim()} className="p-4 bg-ai hover:bg-ai-light text-white rounded-full transition-colors disabled:opacity-50 shadow-ai-glow"><Send className="w-5 h-5" /></button>
             </form>
-            <div className="flex flex-wrap justify-center gap-3">
+            <div className="flex flex-wrap justify-center gap-3 w-full">
               {QUICK_PROMPTS.map((prompt, idx) => (
                 <button key={idx} onClick={() => handleQuickPrompt(prompt)} className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-sm text-gray-300 hover:text-white transition-all hover:border-ai/30 hover:-translate-y-0.5">{prompt}</button>
               ))}
@@ -179,7 +204,7 @@ export default function Home() {
         {/* --- PRE-CHAT EXTENDED HOMEPAGE --- */}
         {!hasStarted && (
           <div className="w-full flex flex-col gap-16 animate-in fade-in duration-1000 delay-300 pb-24">
-            {/* 🚀 DYNAMIC HOMEPAGE AD PLACEMENT */}
+            {/* DYNAMIC HOMEPAGE AD PLACEMENT */}
             {heroAd && (
               <div className="relative w-full h-32 md:h-48 rounded-3xl overflow-hidden border border-white/10 shadow-[0_0_40px_rgba(255,255,255,0.05)] group cursor-pointer animate-in zoom-in-95 duration-700">
                 <div className="absolute top-4 right-4 z-20 bg-black/60 backdrop-blur-md text-white text-[10px] uppercase font-bold px-3 py-1 rounded-full border border-white/20">Sponsored</div>
@@ -281,7 +306,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 🚀 NEW ROW: AI ECOSYSTEM & PLATFORM TOOLS */}
+            {/* AI ECOSYSTEM & PLATFORM TOOLS */}
             <div className="w-full pt-8">
               <div className="flex items-center justify-between mb-8">
                 <div>
@@ -340,7 +365,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Row 4: B2B Trust Bar */}
+            {/* B2B Trust Bar */}
             <div className="border-y border-white/5 py-12 flex flex-col items-center">
               <p className="text-sm text-gray-500 uppercase tracking-widest font-bold mb-8 flex items-center gap-2"><ShieldCheck className="w-4 h-4" /> Trusted by Top Agencies</p>
               <div className="flex flex-wrap justify-center gap-12 md:gap-24 opacity-40 grayscale hover:grayscale-0 transition-all duration-500">
@@ -356,39 +381,34 @@ export default function Home() {
         {/* --- ACTIVE CHAT LAYOUT --- */}
         {hasStarted && (
           <div className="w-full flex flex-col lg:flex-row gap-6 items-start animate-in fade-in slide-in-from-bottom-4 duration-700">
-            
-            {/* 🚀 MOBILE FAB TOGGLE BUTTON */}
-            {!isMobileChatOpen && (
-              <button
-                onClick={() => setIsMobileChatOpen(true)}
-                className="lg:hidden fixed bottom-6 right-6 w-14 h-14 bg-ai text-white rounded-full shadow-[0_0_30px_rgba(139,92,246,0.6)] flex items-center justify-center z-[100] transition-transform hover:scale-105"
-              >
-                <Bot className="w-6 h-6" />
-              </button>
-            )}
 
-            {/* Sticky Chat Container */}
+            {/* 🚀 FIX: Switched to inline Tailwind for perfect pure-glass transparency */}
             <div className={`
-              ${isMobileChatOpen ? 'fixed inset-0 z-[100] p-4 pt-16 bg-brand-dark/20 backdrop-blur-md flex flex-col' : 'hidden lg:flex'}
-              w-full lg:w-1/3 lg:flex-col lg:gap-6 lg:sticky lg:top-24 lg:h-[calc(100vh-120px)] lg:p-0 lg:bg-transparent lg:z-40 shrink-0
+              ${isMobileChatOpen ? 'fixed inset-0 z-[9999] p-4 pt-16 flex flex-col bg-slate-900/40 backdrop-blur-md' : 'hidden lg:flex'}
+              w-full lg:w-1/3 lg:flex-col lg:sticky lg:top-24 lg:h-[calc(100vh-120px)] lg:p-0 lg:bg-transparent lg:z-40 shrink-0
             `}>
-              
-              {/* Close button for Mobile */}
-              {isMobileChatOpen && (
-                 <div className="flex justify-end mb-2 lg:hidden shrink-0">
-                   <button onClick={() => setIsMobileChatOpen(false)} className="p-2 bg-brand-dark/40 rounded-full text-white hover:bg-brand-dark/60 transition-colors backdrop-blur-xl shadow-lg border border-white/10">
-                     <X className="w-6 h-6" />
-                   </button>
-                 </div>
-              )}
 
-              <div className="bg-brand-dark/40 lg:bg-brand-dark/70 backdrop-blur-xl lg:backdrop-blur-2xl border border-white/10 rounded-3xl shadow-glass flex flex-col h-full overflow-hidden ring-1 ring-white/20">
-                <div className="flex items-center justify-between p-4 border-b border-white/10 bg-brand-dark/20 lg:bg-brand-dark/40 shrink-0">
+              {/* 🚀 FIX: Pure white/5 and slate-900/30 glass layer with backdrop blur */}
+              <div className="bg-white/5 lg:bg-slate-900/30 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-glass flex flex-col h-full overflow-hidden ring-1 ring-white/20">
+                
+                <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5 shrink-0">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-ai/20 rounded-full"><Bot className="w-5 h-5 text-ai-light" /></div>
-                    <div><h3 className="text-lg font-semibold text-white leading-tight">AI Advisor</h3><p className="text-xs text-emerald-light">Online • Lahore Expert</p></div>
+                    <div className="p-2 bg-ai/20 rounded-full relative">
+                      <Bot className="w-5 h-5 text-ai-light" />
+                      <span className="absolute top-0 right-0 w-2 h-2 bg-emerald-400 rounded-full animate-pulse border border-slate-900"></span>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-white leading-tight">AI Concierge</h3>
+                      <p className="text-xs text-emerald-light">Online • Lahore Expert</p>
+                    </div>
                   </div>
+                  
                   <div className="flex items-center gap-4">
+                    {/* The new Safe Mobile [X] Button */}
+                    <button onClick={() => setIsMobileChatOpen(false)} className="lg:hidden p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors border border-white/10">
+                      <X className="w-5 h-5" />
+                    </button>
+                    
                     {leadData && (
                       <div className="hidden md:flex flex-col items-end text-xs text-gray-400">
                         <span title="Secret B2B Lead Score" className="font-bold text-white">Score: {leadData.score}/100</span>
@@ -400,22 +420,23 @@ export default function Home() {
 
                 <div ref={chatScrollRef} className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4 custom-scrollbar bg-transparent">
                   {messages.map((msg, idx) => (
-                    <div key={idx} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-lg ${msg.role === 'user' ? 'bg-brand-light' : 'bg-ai/30 border border-ai/50'}`}>{msg.role === 'user' ?
+                    <div key={idx} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse user-message-marker' : 'flex-row'}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-lg ${msg.role === 'user' ?
+                        'bg-brand-light' : 'bg-ai/30 border border-ai/50'}`}>{msg.role === 'user' ?
                         <User className="w-4 h-4 text-white" /> : <Bot className="w-4 h-4 text-ai-light" />}</div>
                       <div className={`p-3 rounded-2xl max-w-[85%] text-sm md:text-base shadow-md ${msg.role === 'user' ?
-                        'bg-brand-light text-white rounded-tr-none' : 'bg-brand-dark/60 lg:bg-brand-dark/80 backdrop-blur-md text-gray-100 rounded-tl-none border border-white/10'}`}><p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p></div>
+                        'bg-brand-light text-white rounded-tr-none' : 'bg-white/10 backdrop-blur-md text-gray-100 rounded-tl-none border border-white/10'}`}><p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p></div>
                     </div>
                   ))}
                   {isLoading && (
                     <div className="flex gap-3">
                       <div className="w-8 h-8 rounded-full bg-ai/30 flex items-center justify-center shrink-0 border border-ai/50"><Bot className="w-4 h-4 text-ai-light" /></div>
-                      <div className="p-4 rounded-2xl bg-brand-dark/60 lg:bg-brand-dark/80 backdrop-blur-md rounded-tl-none border border-white/10 flex gap-2 items-center"><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce"></span><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce delay-75"></span><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce delay-150"></span></div>
+                      <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-md rounded-tl-none border border-white/10 flex gap-2 items-center"><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce"></span><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce delay-75"></span><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce delay-150"></span></div>
                     </div>
                   )}
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-4 bg-brand-dark/30 lg:bg-brand-dark/60 border-t border-white/10 flex gap-2 items-center shrink-0">
+                <form onSubmit={handleSubmit} className="p-4 bg-white/5 border-t border-white/10 flex gap-2 items-center shrink-0">
                   <button type="button" onClick={handleVoiceInput} className={`p-2 rounded-full transition-all shrink-0 ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-gray-300 hover:text-white hover:bg-white/10'}`}><Mic className="w-5 h-5" /></button>
                   <input type="text" value={input} onChange={(e) => setInput(e.target.value)} disabled={isLoading} placeholder="Reply to AI..." className="grow bg-white/10 border border-white/10 text-white placeholder-gray-300 text-sm rounded-full px-4 py-2.5 outline-none focus:border-ai/50 transition-colors disabled:opacity-50" />
                   <button type="submit" disabled={isLoading || !input.trim()} className="w-10 h-10 bg-ai hover:bg-ai-light text-white rounded-full flex items-center justify-center shrink-0 transition-colors disabled:opacity-50 shadow-ai-glow"><Send className="w-4 h-4" /></button>
@@ -423,12 +444,11 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Right Area: Results & Ads (Now designed to scroll smoothly forever) */}
+            {/* Right Area: Results & Ads */}
             <div className="w-full lg:w-2/3 flex flex-col gap-4 pb-12">
 
-              {/* 🚀 DYNAMIC SIDEBAR AD PLACEMENT */}
               {sidebarAd && (
-                <div className="w-full bg-[#162032]/80 backdrop-blur-md border border-white/10 rounded-2xl p-4 shadow-glass flex items-center gap-4 group cursor-pointer hover:border-blue-500/30 transition-colors">
+                <div className="w-full bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-2xl p-4 shadow-glass flex items-center gap-4 group cursor-pointer hover:border-blue-500/30 transition-colors">
                   <img src={sidebarAd.imageUrl} className="w-24 h-16 object-cover rounded-xl" alt="Sponsored" />
                   <div className="flex-grow">
                     <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Sponsored Partner</span>
@@ -449,7 +469,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* The "Loading" screen is now replaced instantly with properties above, but we keep this fallback just in case */}
               {currentProperties.length === 0 && isLoading && <div className="w-full h-64 border border-dashed border-white/20 rounded-3xl flex items-center justify-center text-gray-500 bg-brand-dark/20 backdrop-blur-sm">AI is analyzing the market for you...</div>}
 
               {viewMode === 'list' && currentProperties.map((prop, idx) => (
@@ -469,21 +488,37 @@ export default function Home() {
                 </Link>
               ))}
 
+              {/* FUNCTIONAL RADAR MAP */}
               {viewMode === 'map' && currentProperties.length > 0 && (
-                <div className="w-full h-[80vh] bg-brand-dark rounded-3xl border border-white/10 shadow-glass overflow-hidden relative animate-in zoom-in-95 duration-500">
-                  <img src="https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&w=1200&auto=format&fit=crop" alt="Map View" className="w-full h-full object-cover opacity-30 grayscale contrast-150 mix-blend-screen" />
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(139,92,246,0.1)_0%,rgba(15,23,42,0.8)_100%)]"></div>
-                  {currentProperties.slice(0, 5).map((prop, i) => (
-                    <div key={`${prop.id}-${i}`} className="absolute group cursor-pointer hover:z-50" style={{ top: `${20 + (i * 15)}%`, left: `${20 + (i * 12) + (i % 2 === 0 ? 20 : -10)}%` }}>
-                      <div className={`w-4 h-4 rounded-full shadow-lg border-2 border-brand-dark animate-pulse-slow ${prop.isFeatured ? 'bg-gold shadow-[0_0_15px_rgba(245,158,11,0.8)]' : 'bg-ai shadow-[0_0_15px_rgba(139,92,246,0.8)]'}`}></div>
-                      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-48 bg-glass-gradient backdrop-blur-xl border border-white/10 rounded-xl p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-2xl">
-                        <img src={prop.imageUrl} className="w-full h-16 object-cover rounded-md mb-2" />
-                        <p className={`text-xs font-bold line-clamp-1 ${prop.isFeatured ? 'text-gold-light' : 'text-white'}`}>{prop.title}</p>
-                        <p className="text-emerald-400 text-xs font-semibold">{prop.price || (prop as any).priceFormatted}</p>
-                      </div>
-                    </div>
-                  ))}
-                  <div className="absolute bottom-4 left-4 bg-brand-dark/80 backdrop-blur-md border border-white/10 px-4 py-2 rounded-xl flex items-center gap-2"><MapPin className="w-4 h-4 text-ai-light" /> <span className="text-sm font-medium text-white">Showing {currentProperties.length} Matches</span></div>
+                <div className="w-full h-[80vh] bg-[#0A1128] rounded-3xl border border-white/10 shadow-glass overflow-hidden relative animate-in zoom-in-95 duration-500">
+                  <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
+                  <div className="absolute top-1/2 left-1/2 w-[150%] h-[150%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[conic-gradient(from_0deg,transparent_70%,rgba(139,92,246,0.3)_100%)] animate-[spin_4s_linear_infinite] origin-center pointer-events-none"></div>
+                  <div className="absolute top-1/2 left-1/2 w-[80%] h-[80%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-ai/20 pointer-events-none"></div>
+                  <div className="absolute top-1/2 left-1/2 w-[50%] h-[50%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-ai/30 pointer-events-none"></div>
+                  <div className="absolute top-1/2 left-1/2 w-[20%] h-[20%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-ai/40 pointer-events-none bg-ai/5"></div>
+
+                  {currentProperties.map((prop, index) => {
+                    const angle = (index * 137.5) * (Math.PI / 180);
+                    const radius = 10 + ((index * 7) % 35); 
+                    const top = 50 + radius * Math.sin(angle);
+                    const left = 50 + radius * Math.cos(angle);
+
+                    return (
+                      <Link href={`/properties/${prop.id}`} key={`${prop.id}-map-${index}`} className="absolute group z-10" style={{ top: `${top}%`, left: `${left}%`, transform: 'translate(-50%, -50%)' }}>
+                        <div className="relative">
+                          <div className={`w-4 h-4 rounded-full shadow-lg border-2 border-[#0A1128] z-20 relative ${prop.isFeatured ? 'bg-gold shadow-[0_0_20px_rgba(245,158,11,1)] animate-pulse' : 'bg-ai shadow-[0_0_20px_rgba(139,92,246,1)]'}`}></div>
+                          <div className={`absolute inset-0 rounded-full animate-ping opacity-75 ${prop.isFeatured ? 'bg-gold' : 'bg-ai'}`}></div>
+                        </div>
+                        
+                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-48 bg-glass-gradient backdrop-blur-xl border border-white/20 rounded-xl p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-2xl z-50 scale-95 group-hover:scale-100 duration-200">
+                          <img src={prop.imageUrl} className="w-full h-20 object-cover rounded-md mb-2 shadow-inner" />
+                          <p className={`text-xs font-bold line-clamp-2 ${prop.isFeatured ? 'text-gold-light' : 'text-white'}`}>{prop.title}</p>
+                          <p className="text-emerald-400 text-sm font-black mt-1">{prop.price || (prop as any).priceFormatted}</p>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                  <div className="absolute bottom-4 left-4 bg-brand-dark/90 backdrop-blur-md border border-white/20 px-4 py-2 rounded-xl flex items-center gap-2 z-20 shadow-lg"><MapPin className="w-4 h-4 text-ai-light" /> <span className="text-sm font-bold text-white">Radar Tracking: {currentProperties.length} Assets</span></div>
                 </div>
               )}
             </div>
