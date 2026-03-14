@@ -102,7 +102,6 @@ export default function Home() {
   // 🚀 INSTANT RANDOM PROPERTIES: Fill screen while AI is loading
   useEffect(() => {
     if (hasStarted && currentProperties.length === 0 && featuredProperties.length > 0) {
-      // Create a heavily duplicated and shuffled array for that "unlimited scrolling" feel
       const extendedProperties = [...featuredProperties, ...featuredProperties].sort(() => 0.5 - Math.random());
       setCurrentProperties(extendedProperties);
     }
@@ -370,7 +369,7 @@ export default function Home() {
 
             {/* Sticky Chat Container */}
             <div className={`
-              ${isMobileChatOpen ? 'fixed inset-0 z-[100] p-4 pt-16 bg-brand-dark/20 backdrop-blur-md flex flex-col overflow-y-auto custom-scrollbar' : 'hidden lg:flex'}
+              ${isMobileChatOpen ? 'fixed inset-0 z-[100] p-4 pt-16 bg-brand-dark/20 backdrop-blur-md flex flex-col' : 'hidden lg:flex'}
               w-full lg:w-1/3 lg:flex-col lg:gap-6 lg:sticky lg:top-24 lg:h-[calc(100vh-120px)] lg:p-0 lg:bg-transparent lg:z-40 shrink-0
             `}>
               
@@ -383,8 +382,8 @@ export default function Home() {
                  </div>
               )}
 
-              <div className="bg-brand-dark/40 lg:bg-brand-dark/70 backdrop-blur-xl lg:backdrop-blur-2xl border border-white/10 rounded-3xl shadow-glass flex flex-col flex-grow overflow-hidden shrink-0 ring-1 ring-white/20 min-h-[400px]">
-                <div className="flex items-center justify-between p-4 border-b border-white/10 bg-brand-dark/20 lg:bg-brand-dark/40">
+              <div className="bg-brand-dark/40 lg:bg-brand-dark/70 backdrop-blur-xl lg:backdrop-blur-2xl border border-white/10 rounded-3xl shadow-glass flex flex-col h-full overflow-hidden ring-1 ring-white/20">
+                <div className="flex items-center justify-between p-4 border-b border-white/10 bg-brand-dark/20 lg:bg-brand-dark/40 shrink-0">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-ai/20 rounded-full"><Bot className="w-5 h-5 text-ai-light" /></div>
                     <div><h3 className="text-lg font-semibold text-white leading-tight">AI Advisor</h3><p className="text-xs text-emerald-light">Online • Lahore Expert</p></div>
@@ -399,7 +398,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div ref={chatScrollRef} className="flex-grow overflow-y-auto p-4 flex flex-col gap-4 custom-scrollbar bg-transparent">
+                <div ref={chatScrollRef} className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4 custom-scrollbar bg-transparent">
                   {messages.map((msg, idx) => (
                     <div key={idx} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-lg ${msg.role === 'user' ? 'bg-brand-light' : 'bg-ai/30 border border-ai/50'}`}>{msg.role === 'user' ?
@@ -418,7 +417,7 @@ export default function Home() {
 
                 <form onSubmit={handleSubmit} className="p-4 bg-brand-dark/30 lg:bg-brand-dark/60 border-t border-white/10 flex gap-2 items-center shrink-0">
                   <button type="button" onClick={handleVoiceInput} className={`p-2 rounded-full transition-all shrink-0 ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-gray-300 hover:text-white hover:bg-white/10'}`}><Mic className="w-5 h-5" /></button>
-                  <input type="text" value={input} onChange={(e) => setInput(e.target.value)} disabled={isLoading} placeholder="Reply to AI..." className="flex-grow bg-white/10 border border-white/10 text-white placeholder-gray-300 text-sm rounded-full px-4 py-2.5 outline-none focus:border-ai/50 transition-colors disabled:opacity-50" />
+                  <input type="text" value={input} onChange={(e) => setInput(e.target.value)} disabled={isLoading} placeholder="Reply to AI..." className="grow bg-white/10 border border-white/10 text-white placeholder-gray-300 text-sm rounded-full px-4 py-2.5 outline-none focus:border-ai/50 transition-colors disabled:opacity-50" />
                   <button type="submit" disabled={isLoading || !input.trim()} className="w-10 h-10 bg-ai hover:bg-ai-light text-white rounded-full flex items-center justify-center shrink-0 transition-colors disabled:opacity-50 shadow-ai-glow"><Send className="w-4 h-4" /></button>
                 </form>
               </div>

@@ -19,7 +19,7 @@ export async function GET(req: Request) {
     const ownerId = searchParams.get('ownerId');
 
     // If an ownerId is passed, fetch only their agents. Otherwise, fetch all.
-   const users = await prisma.agencyUser.findMany({
+    const users = await prisma.agencyUser.findMany({
       where: ownerId ? { ownerId } : undefined,
       orderBy: { createdAt: 'desc' }
     });
@@ -47,15 +47,29 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Check if username already exists
-    const existingUser = await prisma.agencyUser.findUnique({ where: { username } });
-    if (existingUser) {
-      return NextResponse.json({ error: "Username already taken" }, { status: 409 });
+    // 🛡️ SANITIZE: Ensure username is strictly lowercase to prevent case-sensitive duplicates
+    const safeUsername = username.toLowerCase().trim();
+
+    // 🛡️ GATEKEEPER 1: Check if username exists in the AgencyUser table
+    const existingAgencyUser = await prisma.agencyUser.findUnique({ 
+      where: { username: safeUsername } 
+    });
+    if (existingAgencyUser) {
+      return NextResponse.json({ error: "Duplicate Error: This username is already taken by another agent." }, { status: 409 });
     }
 
+    // 🛡️ GATEKEEPER 2: Check if username exists in the Master User table! (The Cross-Table Fix)
+    const existingMasterUser = await prisma.user.findUnique({ 
+      where: { email: safeUsername } 
+    });
+    if (existingMasterUser) {
+      return NextResponse.json({ error: "Duplicate Error: This email is already registered as a Master Partner account." }, { status: 409 });
+    }
+
+    // 🟢 Proceed to create if both checks pass
     const newUser = await prisma.agencyUser.create({
       data: {
-        username,
+        username: safeUsername,
         passwordHash: hashPassword(password),
         role: role || "CALLER",
         agencyName: agencyName || "Unknown Agency",
@@ -63,11 +77,64 @@ export async function POST(req: Request) {
       }
     });
 
-    const { passwordHash, ...safeUser } = newUser;
+    const { passwordHash: removedPw, ...safeUser } = newUser;
     return NextResponse.json(safeUser, { status: 201 });
+    
   } catch (error) {
     console.error("Failed to create agency user:", error);
     return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
+  }
+}
+
+// 🚀 NEW PATCH METHOD: Update an existing sub-agent securely
+export async function PATCH(req: Request) {
+  try {
+    const body = await req.json();
+    const { id, username, password, role } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+    }
+
+    const dataToUpdate: any = {};
+
+    // If they are updating the username, we must run the Gatekeeper checks again!
+    if (username) {
+      const safeUsername = username.toLowerCase().trim();
+      
+      const existingAgencyUser = await prisma.agencyUser.findFirst({ 
+        where: { username: safeUsername, NOT: { id: id } } 
+      });
+      const existingMasterUser = await prisma.user.findUnique({ 
+        where: { email: safeUsername } 
+      });
+
+      if (existingAgencyUser || existingMasterUser) {
+        return NextResponse.json({ error: "Duplicate Error: This username is already in use." }, { status: 409 });
+      }
+      dataToUpdate.username = safeUsername;
+    }
+
+    // Only update the password if a new one was actually typed in
+    if (password && password.trim() !== "") {
+      dataToUpdate.passwordHash = hashPassword(password);
+    }
+
+    if (role) {
+      dataToUpdate.role = role;
+    }
+
+    const updatedUser = await prisma.agencyUser.update({
+      where: { id },
+      data: dataToUpdate
+    });
+
+    const { passwordHash: removedPw, ...safeUser } = updatedUser;
+    return NextResponse.json(safeUser, { status: 200 });
+
+  } catch (error) {
+    console.error("Failed to update agency user:", error);
+    return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
   }
 }
 

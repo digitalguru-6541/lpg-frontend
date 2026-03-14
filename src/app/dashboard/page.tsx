@@ -10,7 +10,7 @@ import {
   BellRing, CalendarClock, BotMessageSquare, Send, LogOut, Info, Wallet, 
   Trophy, UserPlus, MessageCircle, Target, UserPlus2, UserCircle, 
   ListTodo, History, CheckSquare, Trash2, Plus, Shield, Building, Edit, 
-  Medal, Award, Calendar
+  Medal, Award, Calendar, Eye, EyeOff
 } from "lucide-react";
 import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -135,6 +135,13 @@ export default function PartnerDashboard() {
   const [agencyUsers, setAgencyUsers] = useState<any[]>([]);
   const [newAgentForm, setNewAgentForm] = useState({ username: "", password: "", role: "CALLER" });
   const [isCreatingAgent, setIsCreatingAgent] = useState(false);
+
+  // --- AGENT EDITING STATES ---
+  const [showPassword, setShowPassword] = useState(false);
+  const [editingAgent, setEditingAgent] = useState<any | null>(null);
+  const [editAgentForm, setEditAgentForm] = useState({ username: "", role: "", password: "" });
+  const [isSavingAgent, setIsSavingAgent] = useState(false);
+  const [showEditPassword, setShowEditPassword] = useState(false);
 
   const [myProperties, setMyProperties] = useState<any[]>([]);
   const [isFetchingProps, setIsFetchingProps] = useState(false);
@@ -782,6 +789,54 @@ export default function PartnerDashboard() {
     l.status !== 'closed' &&
     l.status !== 'lost'
   );
+
+  // 🚀 HANDLE SECURE AGENT EDITING
+  const handleSaveAgentEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAgent) return;
+    setIsSavingAgent(true);
+
+    try {
+      const res = await fetch('/api/agency-users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingAgent.id,
+          username: editAgentForm.username,
+          role: editAgentForm.role,
+          password: editAgentForm.password // Backend will only hash this if it is not empty
+        })
+      });
+
+      if (res.ok) {
+        const updatedAgent = await res.json();
+        setAgencyUsers(prev => prev.map(u => u.id === editingAgent.id ? { ...u, ...updatedAgent } : u));
+        triggerNotification("Agent Updated", `Profile updated for ${updatedAgent.username}.`, "system", currentUserName, false);
+        setEditingAgent(null);
+        setEditAgentForm({ username: "", role: "", password: "" });
+      } else {
+        const err = await res.json();
+        alert(err.error || "Failed to update agent.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("An unexpected error occurred.");
+    } finally {
+      setIsSavingAgent(false);
+    }
+  };
+
+  // 🚀 HOOK FOR POPULATING MODAL DATA
+  useEffect(() => {
+    if (editingAgent) {
+      setEditAgentForm({
+        username: editingAgent.username,
+        role: editingAgent.role,
+        password: "" // Always start blank for security
+      });
+      setShowEditPassword(false);
+    }
+  }, [editingAgent]);
 
   return (
     <div className="relative w-full min-h-screen bg-brand-dark flex overflow-hidden font-sans">
@@ -1610,7 +1665,23 @@ export default function PartnerDashboard() {
                     </div>
                     <div>
                       <label className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mb-1.5 block">Login Password</label>
-                      <input required type="password" value={newAgentForm.password} onChange={e => setNewAgentForm({...newAgentForm, password: e.target.value})} placeholder="Secure password" className="w-full bg-brand-dark border border-white/10 rounded-xl p-3 text-white outline-none focus:border-blue-500 transition-colors text-sm" />
+                      <div className="relative">
+                        <input 
+                          required 
+                          type={showPassword ? "text" : "password"} 
+                          value={newAgentForm.password} 
+                          onChange={e => setNewAgentForm({...newAgentForm, password: e.target.value})} 
+                          placeholder="Secure password" 
+                          className="w-full bg-brand-dark border border-white/10 rounded-xl p-3 pr-10 text-white outline-none focus:border-blue-500 transition-colors text-sm" 
+                        />
+                        <button 
+                          type="button" 
+                          onClick={() => setShowPassword(!showPassword)} 
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
                     <div>
                       <label className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mb-1.5 block">Access Role</label>
@@ -1648,16 +1719,84 @@ export default function PartnerDashboard() {
                             </span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end">
-                          <button onClick={() => handleDeleteAgent(agent.id)} title="Revoke Access" className="p-2 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition-colors ml-4 border border-transparent hover:border-red-600">
-                            <Trash2 className="w-5 h-5" />
-                          </button>
+                        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                           <button 
+                             onClick={() => setEditingAgent(agent)} 
+                             title="Edit Agent" 
+                             className="p-2 bg-blue-500/10 text-blue-400 rounded-xl hover:bg-blue-500 hover:text-white transition-colors border border-transparent hover:border-blue-500/30"
+                           >
+                             <Edit className="w-5 h-5" />
+                           </button>
+                           <button 
+                             onClick={() => handleDeleteAgent(agent.id)} 
+                             title="Revoke Access" 
+                             className="p-2 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition-colors border border-transparent hover:border-red-500/30"
+                           >
+                             <Trash2 className="w-5 h-5" />
+                           </button>
                         </div>
                       </div>
                     ))
                   )}
                 </div>
               </div>
+
+              {/* 🚀 EDIT AGENT MODAL */}
+              {editingAgent && (
+                <div className="fixed inset-0 z-[500] bg-brand-dark/90 backdrop-blur-md flex items-center justify-center p-4">
+                  <div className="bg-[#162032] border border-blue-500/30 rounded-3xl p-8 w-full max-w-md shadow-[0_0_50px_rgba(59,130,246,0.15)] animate-in zoom-in-95 duration-200 relative">
+                    <button onClick={() => { setEditingAgent(null); setEditAgentForm({ username: "", role: "", password: "" }); setShowEditPassword(false); }} className="absolute top-6 right-6 p-2 bg-white/5 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors">
+                      <X className="w-5 h-5" />
+                    </button>
+                    <div className="mb-6 border-b border-white/10 pb-4">
+                      <h3 className="text-2xl font-bold text-white flex items-center gap-2"><Edit className="w-6 h-6 text-blue-400" /> Edit Agent Profile</h3>
+                      <p className="text-sm text-gray-400 mt-1">Updating credentials for: <strong className="text-white">{editingAgent.username}</strong></p>
+                    </div>
+                    
+                    <form onSubmit={handleSaveAgentEdit} className="space-y-5">
+                      <div>
+                        <label className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mb-1.5 block">Update Username</label>
+                        <input required type="text" value={editAgentForm.username} onChange={e => setEditAgentForm({...editAgentForm, username: e.target.value})} className="w-full bg-brand-dark border border-white/10 rounded-xl p-3 text-white outline-none focus:border-blue-500 transition-colors text-sm" />
+                      </div>
+                      
+                      <div>
+                        <label className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mb-1.5 block">Change Role</label>
+                        <select required value={editAgentForm.role} onChange={e => setEditAgentForm({...editAgentForm, role: e.target.value})} className="w-full bg-brand-dark border border-white/10 rounded-xl p-3 text-white outline-none focus:border-blue-500 transition-colors text-sm appearance-none cursor-pointer">
+                          <option value="CALLER">Caller (Read-Only Pipeline + Notes)</option>
+                          <option value="EXECUTIVE">Executive (Full CRM Access)</option>
+                        </select>
+                      </div>
+
+                      <div className="pt-2 border-t border-white/5">
+                        <label className="text-[10px] text-blue-400 uppercase font-bold tracking-widest mb-1.5 flex justify-between">
+                          <span>Overwrite Password</span>
+                          <span className="text-gray-500 font-normal normal-case">(Leave blank to keep current)</span>
+                        </label>
+                        <div className="relative">
+                          <input 
+                            type={showEditPassword ? "text" : "password"} 
+                            value={editAgentForm.password} 
+                            onChange={e => setEditAgentForm({...editAgentForm, password: e.target.value})} 
+                            placeholder="Type new password..." 
+                            className="w-full bg-brand-dark border border-blue-500/30 rounded-xl p-3 pr-10 text-white outline-none focus:border-blue-500 transition-colors text-sm" 
+                          />
+                          <button 
+                            type="button" 
+                            onClick={() => setShowEditPassword(!showEditPassword)} 
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                          >
+                            {showEditPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <button type="submit" disabled={isSavingAgent} className="w-full py-4 mt-2 bg-blue-500 hover:bg-blue-400 text-white font-black text-lg rounded-xl transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)] disabled:opacity-50 flex items-center justify-center gap-2">
+                        {isSavingAgent ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Save className="w-5 h-5" /> Save Changes</>}
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -2580,6 +2719,7 @@ function EditPropertyForm({ initialData, activeUser, onClose, onSuccess }: { ini
               <option value="Office">Office</option>
             </select>
           </div>
+          
         ) : formData.category === 'Flats' ? (
            <div>
             <label className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-2 block">Flat Type</label>

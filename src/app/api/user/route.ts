@@ -35,6 +35,51 @@ export async function GET() {
   }
 }
 
+// 🚀 THE GATEKEEPER: Added POST method to safely create users and block duplicates
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const { email, passwordHash, role, name, agencyName, phone } = body;
+
+    if (!email) {
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+
+    const safeEmail = email.toLowerCase().trim();
+
+    // 🛡️ STEP 1: Check for duplicate email BEFORE creating
+    const existingUser = await prisma.user.findUnique({
+      where: { email: safeEmail }
+    });
+
+    if (existingUser) {
+      return NextResponse.json(
+        { error: "Duplicate Error: This email is already registered in the system." },
+        { status: 409 } // 409 Conflict
+      );
+    }
+
+    // 🟢 STEP 2: Proceed with Safe Creation
+    const newUser = await prisma.user.create({
+      data: {
+        email: safeEmail,
+        passwordHash: passwordHash || "",
+        role: role || "USER",
+        name: name || safeEmail.split("@")[0],
+        agencyName: agencyName || null,
+        phone: phone || null
+      }
+    });
+
+    const { passwordHash: removedPw, ...safeUser } = newUser;
+    return NextResponse.json(safeUser, { status: 201 });
+
+  } catch (error) {
+    console.error("🔥 FATAL POST User Error:", error);
+    return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
+  }
+}
+
 export async function PATCH(req: Request) {
   try {
     const body = await req.json();
@@ -49,7 +94,7 @@ export async function PATCH(req: Request) {
       where: { id },
       data: dataToUpdate
     });
-    
+
     const { passwordHash: removedPw, ...safeUpdatedUser } = updatedUser;
     return NextResponse.json(safeUpdatedUser);
   } catch (error) {

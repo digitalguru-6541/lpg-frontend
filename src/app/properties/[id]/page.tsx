@@ -256,7 +256,7 @@ export default function PropertyDetailPage() {
           <div className="w-full lg:w-2/3 flex flex-col gap-6">
 
             {/* Cinematic Masonry Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 h-[450px] rounded-3xl overflow-hidden shadow-glass border border-white/10 relative">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 h-112.5 md:h-[450px] rounded-3xl overflow-hidden shadow-glass border border-white/10 relative">
               {property.isFeatured && <div className="absolute top-4 left-4 z-20 bg-gold text-white text-sm font-bold px-4 py-1.5 rounded-full flex items-center gap-1 shadow-lg"><Star className="w-4 h-4 fill-current" /> Premium Listing</div>}
 
               <div className="md:col-span-2 relative group cursor-pointer overflow-hidden bg-brand-dark/50" onClick={() => setIsGalleryOpen(true)}>
@@ -290,18 +290,18 @@ export default function PropertyDetailPage() {
 
             {/* Vital Stats Bar */}
             <div className="flex flex-wrap gap-4">
-              <div className="flex items-center gap-3 bg-white/5 border border-white/10 px-6 py-4 rounded-2xl flex-1 min-w-[150px] shadow-sm">
+              <div className="flex items-center gap-3 bg-white/5 border border-white/10 px-6 py-4 rounded-2xl flex-1 min-w-37.5 shadow-sm">
                 <Square className="w-6 h-6 text-gold" />
                 <div><p className="text-[10px] text-gray-500 uppercase tracking-widest font-black">Area Size</p><p className="text-xl font-bold">{property.size}</p></div>
               </div>
               {property.bedrooms && (
-                <div className="flex items-center gap-3 bg-white/5 border border-white/10 px-6 py-4 rounded-2xl flex-1 min-w-[150px] shadow-sm">
+                <div className="flex items-center gap-3 bg-white/5 border border-white/10 px-6 py-4 rounded-2xl flex-1 min-w-37.5 shadow-sm">
                   <Bed className="w-6 h-6 text-blue-400" />
                   <div><p className="text-[10px] text-gray-500 uppercase tracking-widest font-black">{property.category === 'Commercial' ? 'Rooms' : 'Bedrooms'}</p><p className="text-xl font-bold">{property.bedrooms}</p></div>
                 </div>
               )}
               {property.bathrooms && (
-                <div className="flex items-center gap-3 bg-white/5 border border-white/10 px-6 py-4 rounded-2xl flex-1 min-w-[150px] shadow-sm">
+                <div className="flex items-center gap-3 bg-white/5 border border-white/10 px-6 py-4 rounded-2xl flex-1 min-w-37.5 shadow-sm">
                   <Bath className="w-6 h-6 text-cyan-400" />
                   <div><p className="text-[10px] text-gray-500 uppercase tracking-widest font-black">Bathrooms</p><p className="text-xl font-bold">{property.bathrooms}</p></div>
                 </div>
@@ -349,7 +349,7 @@ export default function PropertyDetailPage() {
             {/* AI Insights & Financial Simulators */}
             {viewPurpose === 'buy' ? (
               <>
-                {/* 🚀 AI PRICE PREDICTION (Moved to Left Column) */}
+                {/* 🚀 AI PRICE PREDICTION (Left Column) */}
                 <div className="bg-glass-gradient border border-ai/30 p-6 md:p-8 rounded-3xl shadow-[0_0_40px_rgba(139,92,246,0.15)] w-full mb-6">
                   <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
                     <div className="p-2 bg-ai/20 rounded-xl animate-pulse"><Sparkles className="w-6 h-6 text-ai-light" /></div>
@@ -419,7 +419,7 @@ export default function PropertyDetailPage() {
                     <div className="mb-6"><div className="flex justify-between text-sm mb-2"><span className="text-gray-300">If you rent for:</span><span className="font-bold text-white">{rentTenure} Years</span></div><input type="range" min="1" max="10" step="1" value={rentTenure} onChange={(e) => setRentTenure(parseInt(e.target.value))} className="w-full h-2 bg-white/10 rounded-lg accent-ai" /></div>
                     <div className="mt-8 p-4 bg-ai/10 border border-ai/20 rounded-2xl"><p className="text-xs text-ai-200 mb-1">Total Rent Wasted:</p><p className="text-2xl font-extrabold text-ai-light">{formatPKR(totalRentSpent)}</p></div>
                   </div>
-                  <div className="w-full md:w-2/3 h-[250px]">
+                  <div className="w-full md:w-2/3 h-62.5 md:h-[250px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={dynamicRentVsBuyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
@@ -488,16 +488,16 @@ export default function PropertyDetailPage() {
           {!isMobileChatOpen && (
             <button
               onClick={() => setIsMobileChatOpen(true)}
-              className="lg:hidden fixed bottom-6 right-6 w-14 h-14 bg-ai text-white rounded-full shadow-[0_0_30px_rgba(139,92,246,0.6)] flex items-center justify-center z-[100] transition-transform hover:scale-105"
+              className="lg:hidden fixed bottom-6 right-6 w-14 h-14 bg-ai text-white rounded-full shadow-[0_0_30px_rgba(139,92,246,0.6)] flex items-center justify-center z-100 transition-transform hover:scale-105"
             >
               <Bot className="w-6 h-6" />
             </button>
           )}
 
-          {/* RIGHT COLUMN: Chatbot & Sidebar Elements (Now Sticky & Flex-Grow enabled) */}
+          {/* RIGHT COLUMN: Chatbot & Sidebar Elements (Now strictly bounded & sticky) */}
           <div className={`
-            ${isMobileChatOpen ? 'fixed inset-0 z-[100] p-4 pt-16 bg-brand-dark/20 backdrop-blur-md flex flex-col overflow-y-auto custom-scrollbar' : 'hidden lg:flex'}
-            w-full lg:w-1/3 lg:flex-col lg:gap-6 lg:sticky lg:top-28 lg:max-h-[calc(100vh-160px)] lg:p-0 lg:bg-transparent lg:z-10
+            ${isMobileChatOpen ? 'fixed inset-0 z-[100] p-4 pt-16 bg-brand-dark/20 backdrop-blur-md flex flex-col' : 'hidden lg:flex'}
+            w-full lg:w-1/3 lg:flex-col lg:sticky lg:top-24 lg:h-[calc(100vh-120px)] lg:p-0 lg:bg-transparent lg:z-10
           `}>
 
             {/* Close button for Mobile */}
@@ -510,15 +510,15 @@ export default function PropertyDetailPage() {
             )}
 
             {/* Chat Box Container */}
-            <div className="bg-brand-dark/40 lg:bg-brand-dark/70 backdrop-blur-xl lg:backdrop-blur-2xl border border-white/10 rounded-3xl shadow-glass flex flex-col flex-grow overflow-hidden shrink-0 ring-1 ring-white/20 min-h-[400px]">
-              <div className="flex items-center justify-between p-4 border-b border-white/10 bg-brand-dark/20 lg:bg-brand-dark/40">
+            <div className="bg-brand-dark/40 lg:bg-brand-dark/70 backdrop-blur-xl lg:backdrop-blur-2xl border border-white/10 rounded-3xl shadow-glass flex flex-col grow overflow-hidden ring-1 ring-white/20">
+              <div className="flex items-center justify-between p-4 border-b border-white/10 bg-brand-dark/20 lg:bg-brand-dark/40 shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-ai/20 rounded-full relative"><Bot className="w-5 h-5 text-ai-light" /><span className="absolute top-0 right-0 w-2 h-2 bg-emerald-400 rounded-full animate-pulse border border-brand-dark"></span></div>
                   <div><h3 className="text-lg font-semibold text-white leading-tight">AI Concierge</h3><p className="text-xs text-emerald-light">Instantly Available</p></div>
                 </div>
               </div>
 
-              <div ref={chatScrollRef} className="flex-grow overflow-y-auto p-4 flex flex-col gap-4 custom-scrollbar bg-transparent">
+              <div ref={chatScrollRef} className="grow overflow-y-auto p-4 flex flex-col gap-4 custom-scrollbar bg-transparent">
                 {messages.length === 0 && (
                   <div className="flex flex-col items-center justify-center h-full text-center text-gray-300 gap-4 opacity-90">
                     <Sparkles className="w-8 h-8 text-ai-light" />
@@ -537,7 +537,7 @@ export default function PropertyDetailPage() {
                     {msg.recommendedProperties && msg.recommendedProperties.length > 0 && (
                       <div className="flex flex-col gap-3 mt-2 pl-11 w-full max-w-[90%]">
                         {msg.recommendedProperties.map((recProp: any) => (
-                          <Link href={`/properties/${recProp.id}`} key={recProp.id} className="block w-full bg-brand-dark/60 lg:bg-brand-dark/80 backdrop-blur-md border border-white/10 rounded-xl overflow-hidden hover:border-ai/50 transition-colors flex items-center group">
+                          <Link href={`/properties/${recProp.id}`} key={recProp.id} className="w-full bg-brand-dark/60 lg:bg-brand-dark/80 backdrop-blur-md border border-white/10 rounded-xl overflow-hidden hover:border-ai/50 transition-colors flex items-center group">
                             <img src={recProp.imageUrl} className="w-20 h-20 object-cover shrink-0 group-hover:scale-105 transition-transform" alt="prop" />
                             <div className="p-3 flex-grow">
                               <h4 className="text-white text-xs font-bold line-clamp-1 mb-1">{recProp.title}</h4>
@@ -549,11 +549,11 @@ export default function PropertyDetailPage() {
                     )}
                   </div>
                 ))}
-                {isLoading && <div className="flex gap-3"><div className="w-8 h-8 rounded-full bg-ai/30 flex items-center justify-center border border-ai/50"><Bot className="w-4 h-4 text-ai-light" /></div><div className="p-4 rounded-2xl bg-brand-dark/60 lg:bg-brand-dark/80 backdrop-blur-md rounded-tl-none border border-white/10 flex gap-2"><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce"></span><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce delay-75"></span><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce delay-150"></span></div></div>}
+                {isLoading && <div className="flex gap-3"><div className="w-8 h-8 rounded-full bg-ai/30 flex items-center justify-center border border-ai/50 shrink-0"><Bot className="w-4 h-4 text-ai-light" /></div><div className="p-4 rounded-2xl bg-brand-dark/60 lg:bg-brand-dark/80 backdrop-blur-md rounded-tl-none border border-white/10 flex gap-2 items-center"><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce"></span><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce delay-75"></span><span className="w-2 h-2 bg-ai-light rounded-full animate-bounce delay-150"></span></div></div>}
               </div>
 
               <form onSubmit={handleSubmit} className="p-4 bg-brand-dark/30 lg:bg-brand-dark/60 border-t border-white/10 flex gap-2 items-center shrink-0">
-                <input type="text" value={input} onChange={(e) => setInput(e.target.value)} disabled={isLoading} placeholder="Ask to schedule a viewing..." className="flex-grow bg-white/10 border border-white/10 text-white placeholder-gray-300 text-sm rounded-full px-4 py-3 outline-none focus:border-ai/50 transition-colors disabled:opacity-50" />
+                <input type="text" value={input} onChange={(e) => setInput(e.target.value)} disabled={isLoading} placeholder="Ask to schedule a viewing..." className="grow bg-white/10 border border-white/10 text-white placeholder-gray-300 text-sm rounded-full px-4 py-3 outline-none focus:border-ai/50 transition-colors disabled:opacity-50" />
                 <button type="submit" disabled={isLoading || !input.trim()} className="w-12 h-12 bg-ai hover:bg-ai-light text-white rounded-full flex items-center justify-center shrink-0 transition-colors disabled:opacity-50 shadow-ai-glow"><Send className="w-5 h-5 ml-1" /></button>
               </form>
             </div>
@@ -566,7 +566,7 @@ export default function PropertyDetailPage() {
             <h2 className="text-2xl font-bold text-white flex items-center gap-2 mb-6"><Sparkles className="w-6 h-6 text-emerald-400" /> Recommended {property.category}s in {property.location}</h2>
             <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar snap-x snap-mandatory">
               {similarProperties.map((simProp) => (
-                <Link href={`/properties/${simProp.id}`} key={simProp.id} className="min-w-[300px] w-[300px] shrink-0 snap-start group">
+                <Link href={`/properties/${simProp.id}`} key={simProp.id} className="min-w-75 w-[300px] md:w-[300px] shrink-0 snap-start group">
                   <div className="h-full bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden hover:border-emerald-500/50 transition-all duration-300">
                     <div className="h-48 overflow-hidden relative">
                       <img src={simProp.imageUrl} alt={simProp.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
@@ -592,7 +592,7 @@ export default function PropertyDetailPage() {
 
       {/* FULL SCREEN LIGHTBOX GALLERY */}
       {isGalleryOpen && (
-        <div className="fixed inset-0 z-[999] bg-black/95 backdrop-blur-xl flex items-center justify-center animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-999 bg-black/95 backdrop-blur-xl flex items-center justify-center animate-in fade-in duration-300">
           <button onClick={() => setIsGalleryOpen(false)} className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-50">
             <X className="w-6 h-6" />
           </button>
@@ -607,7 +607,7 @@ export default function PropertyDetailPage() {
               className="max-w-full max-h-full object-contain rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-300"
               alt={`Gallery Image ${currentImageIndex + 1}`}
             />
-            <div className="absolute bottom-[-40px] left-1/2 -translate-x-1/2 bg-white/10 px-4 py-2 rounded-full text-sm font-bold text-white tracking-widest">
+            <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 bg-white/10 px-4 py-2 rounded-full text-sm font-bold text-white tracking-widest">
               {currentImageIndex + 1} / {galleryImages.length}
             </div>
           </div>
