@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import imageCompression from 'browser-image-compression'; // 🚀 INJECTED COMPRESSION SDK
+//import imageCompression from 'browser-image-compression'; // 🚀 INJECTED COMPRESSION SDK
 
 import LeadNotifier from "../components/LeadNotifier";
 
@@ -2293,7 +2293,7 @@ function PropertyUploadForm({ activeUser, onSuccess }: { activeUser: any, onSucc
     title: "", purpose: "buy", category: "Home", subCategory: "House",
     price: "", priceFormatted: "", size: "", location: "", city: "Lahore",
     bedrooms: "", bathrooms: "", isFurnished: false,
-    paymentMode: "Cash", installmentPlan: "", 
+    paymentMode: "Cash", installmentPlan: "",
     criticalNotes: "",
     images: [] as string[], videoUrl: ""
   });
@@ -2312,6 +2312,7 @@ function PropertyUploadForm({ activeUser, onSuccess }: { activeUser: any, onSucc
     });
   };
 
+  // 🚀 ENTERPRISE UPGRADE: Direct to Google Cloud Storage (With Webpack Interop Fix)
   const handleMultipleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (formData.images.length + files.length > 12) {
@@ -2322,26 +2323,46 @@ function PropertyUploadForm({ activeUser, onSuccess }: { activeUser: any, onSucc
     setIsCompressing(true);
 
     const options = {
-      maxSizeMB: 0.2, 
-      maxWidthOrHeight: 1200, 
+      maxSizeMB: 0.5,
+      maxWidthOrHeight: 1200,
       useWebWorker: true,
     };
 
     try {
-      const promises = files.map(async (file) => {
-        const compressedFile = await imageCompression(file, options);
-        return new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.readAsDataURL(compressedFile);
-        });
-      });
+      const uploadedUrls = [];
+      
+      // 🚀 THE TRUE FIX: Dynamically import the library only on the client side
+      const imageCompressionModule = await import('browser-image-compression');
+      // Safely extract the default export regardless of how Webpack bundled it
+      const compressImage = imageCompressionModule.default || imageCompressionModule;
 
-      const base64Images = await Promise.all(promises);
-      setFormData(prev => ({ ...prev, images: [...prev.images, ...base64Images] }));
+      for (const file of files) {
+        // Compress using the dynamically loaded function
+        const compressedFile = await compressImage(file, options);
+        
+        const uploadData = new FormData();
+        uploadData.append("file", compressedFile, file.name);
+
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: uploadData,
+        });
+
+        if (!res.ok) {
+          throw new Error(`Upload failed for ${file.name}`);
+        }
+
+        const data = await res.json();
+        if (data.url) {
+          uploadedUrls.push(data.url);
+        }
+      }
+
+      setFormData(prev => ({ ...prev, images: [...prev.images, ...uploadedUrls] }));
+    
     } catch (error) {
-      console.error("Compression failed", error);
-      alert("Failed to compress images. Please try again.");
+      console.error("GCS Upload failed", error);
+      alert("Failed to upload images to Cloud Storage. Please try again.");
     } finally {
       setIsCompressing(false);
     }
@@ -2365,8 +2386,8 @@ function PropertyUploadForm({ activeUser, onSuccess }: { activeUser: any, onSucc
 
     const payload = {
       ...formData,
-      price: parseNumberInput(formData.price), 
-      images: formData.images, // 🚀 SENDING THE FULL ARRAY TO THE API
+      price: parseNumberInput(formData.price),
+      images: formData.images, 
       agencyName: activeUser?.agencyName || "LPG Premium",
       submittedBy: activeUser?.username || activeUser?.name || "System"
     };
@@ -2427,7 +2448,7 @@ function PropertyUploadForm({ activeUser, onSuccess }: { activeUser: any, onSucc
               <option value="rent">For Rent</option>
             </select>
           </div>
-          
+
           <div>
             <label className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-2 block">Category</label>
             <select name="category" value={formData.category} onChange={handleChange} className="w-full bg-brand-dark/50 border border-white/10 text-white rounded-xl px-4 py-3 outline-none focus:border-emerald-500/50 appearance-none">
@@ -2448,7 +2469,7 @@ function PropertyUploadForm({ activeUser, onSuccess }: { activeUser: any, onSucc
               </select>
             </div>
           ) : formData.category === 'Flats' ? (
-             <div>
+            <div>
               <label className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-2 block">Flat Type</label>
               <select name="subCategory" value={formData.subCategory} onChange={handleChange} className="w-full bg-brand-dark/50 border border-white/10 text-white rounded-xl px-4 py-3 outline-none focus:border-emerald-500/50 appearance-none">
                 <option value="Studio">Studio</option>
@@ -2542,7 +2563,7 @@ function PropertyUploadForm({ activeUser, onSuccess }: { activeUser: any, onSucc
 
               <button type="button" onClick={() => fileInputRef.current?.click()} disabled={formData.images.length >= 12 || isCompressing} className="w-full h-24 border-2 border-dashed border-white/20 hover:border-emerald-500/50 rounded-xl flex flex-col items-center justify-center text-gray-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-brand-dark/50">
                 {isCompressing ? <Loader2 className="w-6 h-6 mb-1 text-emerald-400 animate-spin" /> : <ImageIcon className="w-6 h-6 mb-1 text-emerald-400/70" />}
-                <span className="text-xs">{isCompressing ? "Compressing Photos..." : "Browse Files to Upload"}</span>
+                <span className="text-xs">{isCompressing ? "Uploading to Cloud..." : "Browse Files to Upload"}</span>
               </button>
 
               {formData.images.length > 0 && (
@@ -2579,7 +2600,6 @@ function PropertyUploadForm({ activeUser, onSuccess }: { activeUser: any, onSucc
   );
 }
 
-// REPLACE YOUR EditPropertyForm WITH THIS VERSION
 function EditPropertyForm({ initialData, activeUser, onClose, onSuccess }: { initialData: any, activeUser: any, onClose: () => void, onSuccess: (data: any) => void }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
@@ -2590,9 +2610,9 @@ function EditPropertyForm({ initialData, activeUser, onClose, onSuccess }: { ini
     title: initialData.title || "", purpose: initialData.purpose || "buy", category: initialData.category || "Home", subCategory: initialData.subCategory || "House",
     price: initialData.price || "", priceFormatted: initialData.priceFormatted || "", size: initialData.size || "", location: initialData.location || "", city: initialData.city || "Lahore",
     bedrooms: initialData.bedrooms || "", bathrooms: initialData.bathrooms || "", isFurnished: initialData.isFurnished || false,
-    paymentMode: initialData.paymentMode || "Cash", installmentPlan: initialData.installmentPlan || "", 
+    paymentMode: initialData.paymentMode || "Cash", installmentPlan: initialData.installmentPlan || "",
     criticalNotes: initialData.criticalNotes || "",
-    images: initialData.imageUrls && initialData.imageUrls.length > 0 ? initialData.imageUrls : (initialData.imageUrl ? [initialData.imageUrl] : []), 
+    images: initialData.imageUrls && initialData.imageUrls.length > 0 ? initialData.imageUrls : (initialData.imageUrl ? [initialData.imageUrl] : []),
     videoUrl: initialData.videoUrl || ""
   });
 
@@ -2610,6 +2630,7 @@ function EditPropertyForm({ initialData, activeUser, onClose, onSuccess }: { ini
     });
   };
 
+  // 🚀 ENTERPRISE UPGRADE: Direct to Google Cloud Storage (With Webpack Interop Fix)
   const handleMultipleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (formData.images.length + files.length > 12) {
@@ -2620,26 +2641,44 @@ function EditPropertyForm({ initialData, activeUser, onClose, onSuccess }: { ini
     setIsCompressing(true);
 
     const options = {
-      maxSizeMB: 0.2, 
-      maxWidthOrHeight: 1200, 
+      maxSizeMB: 0.5,
+      maxWidthOrHeight: 1200,
       useWebWorker: true,
     };
 
     try {
-      const promises = files.map(async (file) => {
-        const compressedFile = await imageCompression(file, options);
-        return new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.readAsDataURL(compressedFile);
-        });
-      });
+      const uploadedUrls = [];
+      
+      // 🚨 WEBPACK ESM/CJS FIX
+      const compressFn = typeof imageCompression === "function" 
+        ? imageCompression 
+        : (imageCompression as any).default;
 
-      const base64Images = await Promise.all(promises);
-      setFormData(prev => ({ ...prev, images: [...prev.images, ...base64Images] }));
+      for (const file of files) {
+        const compressedFile = await compressFn(file, options);
+        
+        const uploadData = new FormData();
+        uploadData.append("file", compressedFile, file.name);
+
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: uploadData,
+        });
+
+        if (!res.ok) {
+          throw new Error(`Upload failed for ${file.name}`);
+        }
+
+        const data = await res.json();
+        if (data.url) {
+          uploadedUrls.push(data.url);
+        }
+      }
+
+      setFormData(prev => ({ ...prev, images: [...prev.images, ...uploadedUrls] }));
     } catch (error) {
-      console.error("Compression failed", error);
-      alert("Failed to compress images. Please try again.");
+      console.error("GCS Upload failed", error);
+      alert("Failed to upload images to Cloud Storage. Please try again.");
     } finally {
       setIsCompressing(false);
     }
@@ -2719,9 +2758,9 @@ function EditPropertyForm({ initialData, activeUser, onClose, onSuccess }: { ini
               <option value="Office">Office</option>
             </select>
           </div>
-          
+
         ) : formData.category === 'Flats' ? (
-           <div>
+          <div>
             <label className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-2 block">Flat Type</label>
             <select name="subCategory" value={formData.subCategory} onChange={handleChange} className="w-full bg-brand-dark/50 border border-white/10 text-white rounded-xl px-4 py-3 outline-none focus:border-emerald-500/50 appearance-none">
               <option value="Studio">Studio</option>
@@ -2802,7 +2841,7 @@ function EditPropertyForm({ initialData, activeUser, onClose, onSuccess }: { ini
           <label className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-2 flex items-center gap-2"><Sparkles className="w-4 h-4 text-ai-light" /> Critical Notes (AI Analyzed)</label>
           <textarea name="criticalNotes" value={formData.criticalNotes} onChange={handleChange} className="w-full h-24 bg-brand-dark/50 border border-white/10 text-white rounded-xl p-4 outline-none focus:border-ai/50 resize-none custom-scrollbar" />
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-2 flex justify-between">
@@ -2814,7 +2853,7 @@ function EditPropertyForm({ initialData, activeUser, onClose, onSuccess }: { ini
 
             <button type="button" onClick={() => fileInputRef.current?.click()} disabled={formData.images.length >= 12 || isCompressing} className="w-full h-24 border-2 border-dashed border-white/20 hover:border-emerald-500/50 rounded-xl flex flex-col items-center justify-center text-gray-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-brand-dark/50">
               {isCompressing ? <Loader2 className="w-6 h-6 mb-1 text-emerald-400 animate-spin" /> : <ImageIcon className="w-6 h-6 mb-1 text-emerald-400/70" />}
-              <span className="text-xs">{isCompressing ? "Compressing Photos..." : "Browse Files to Upload"}</span>
+              <span className="text-xs">{isCompressing ? "Uploading to Cloud..." : "Browse Files to Upload"}</span>
             </button>
 
             {formData.images.length > 0 && (

@@ -9,10 +9,10 @@ import { useRouter, useParams } from "next/navigation";
 
 // --- Interfaces ---
 interface Message { role: "user" | "ai"; content: string; recommendedProperties?: any[] }
-interface Property { 
+interface Property {
   id: string; title: string; price: number; priceFormatted: string; size: string; bedrooms: number; bathrooms: number; location: string;
   imageUrl: string; imageUrls?: string[]; purpose: 'buy' | 'rent'; isFeatured: boolean; category: string; subCategory: string; city: string; description?: string; paymentMode: string;
-  installmentPlan?: string; agencyName: string; 
+  installmentPlan?: string; agencyName: string;
 }
 
 // Dynamic Formatter Helper (Short)
@@ -164,14 +164,14 @@ export default function PropertyDetailPage() {
     }
   };
 
-  const handleNextImage = (e: any) => { 
-    e.stopPropagation(); 
-    setCurrentImageIndex((prev) => (prev + 1) % galleryImages.length); 
+  const handleNextImage = (e: any) => {
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev + 1) % galleryImages.length);
   };
-  
-  const handlePrevImage = (e: any) => { 
-    e.stopPropagation(); 
-    setCurrentImageIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length); 
+
+  const handlePrevImage = (e: any) => {
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length);
   };
 
   const propertyValue = property?.price || 35000000;
@@ -274,7 +274,7 @@ export default function PropertyDetailPage() {
             <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-4 text-sm font-bold uppercase tracking-widest">
               <ArrowLeft className="w-4 h-4" /> Back to Search
             </button>
-            
+
             {/* 🚀 UPGRADE: Highlighted Categories & Glowing Borders */}
             <div className="flex items-center gap-3 mb-4">
               <span className="bg-emerald-500/20 text-emerald-300 px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest border border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
@@ -284,12 +284,12 @@ export default function PropertyDetailPage() {
                 {property.category} • {property.subCategory}
               </span>
             </div>
-            
+
             <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-tight drop-shadow-lg">{property.title}</h1>
-            
+
             {/* 🚀 UPGRADE: Bright, bold location pointer */}
             <p className="text-gray-100 flex items-center gap-2 mt-4 text-xl font-semibold">
-              <MapPin className="w-6 h-6 text-emerald-400 drop-shadow-[0_0_10px_rgba(16,185,129,0.8)]" /> 
+              <MapPin className="w-6 h-6 text-emerald-400 drop-shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
               <span className="drop-shadow-md">{property.location}, {property.city}</span>
             </p>
           </div>
@@ -302,7 +302,7 @@ export default function PropertyDetailPage() {
                 {property.price ? formatFullPKR(property.price) : property.priceFormatted}
               </h2>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <button onClick={toggleSave} className={`p-4 rounded-full border transition-all shadow-lg ${isSaved ? 'bg-red-500/20 border-red-500/50 text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.3)]' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'}`}>
                 <Heart className={`w-6 h-6 ${isSaved ? 'fill-current' : ''}`} />
@@ -311,7 +311,8 @@ export default function PropertyDetailPage() {
           </div>
         </div>
 
-        <div className="w-full flex flex-col lg:flex-row gap-6 items-start relative z-[100]">
+        {/* 🚀 FIX 1: Removed relative z-[100] to prevent Stacking Context traps on mobile */}
+        <div className="w-full flex flex-col lg:flex-row gap-6 items-start relative z-10">
 
           {/* LEFT COLUMN */}
           <div className="w-full lg:w-2/3 flex flex-col gap-6">
@@ -369,14 +370,33 @@ export default function PropertyDetailPage() {
               )}
             </div>
 
-            {/* Description & Features */}
+            {/* 🚀 FIX 2: GLOWING, SPLIT SENTENCE PROPERTY OVERVIEW */}
             <div className="space-y-8 pb-8">
-              <div>
-                <h3 className="text-2xl font-bold mb-4">Property Overview</h3>
-                <p className="text-gray-300 leading-relaxed whitespace-pre-wrap text-lg opacity-90">
-                  {property.description || `An exclusive ${property.size} ${property.subCategory} located in the highly sought-after ${property.location}.
-                  This premium listing is currently available on a ${property.paymentMode.toLowerCase()} basis.`}
-                </p>
+              <div className="relative">
+                <div className="absolute -inset-4 bg-emerald-500/5 blur-2xl rounded-3xl -z-10"></div>
+                
+                <h3 className="text-3xl font-black text-white mb-6 flex items-center gap-3 drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]">
+                  <Sparkles className="w-8 h-8 text-emerald-400" /> Property Overview
+                </h3>
+                
+                <div className="space-y-4">
+                  {(() => {
+                    const rawDesc = property.description || `An exclusive ${property.size} ${property.subCategory} located in the highly sought-after ${property.location}. This premium listing is currently available on a ${property.paymentMode.toLowerCase()} basis. Designed for luxury living and maximum ROI. Contact us today for an exclusive viewing.`;
+                    
+                    // Automatically split the block of text by periods to create distinct, punchy sentences
+                    const sentences = rawDesc.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 5);
+                    const icons = ["✨", "💎", "🌟", "🔥", "🏙️", "🌿", "🏆", "🔑"];
+
+                    return sentences.map((sentence, idx) => (
+                      <div key={idx} className="flex items-start gap-4 p-5 bg-gradient-to-r from-emerald-500/10 to-transparent border-l-4 border-emerald-400 rounded-r-2xl hover:bg-emerald-500/20 transition-all duration-300 shadow-[0_0_20px_rgba(16,185,129,0.05)] hover:shadow-[0_0_30px_rgba(16,185,129,0.15)] group">
+                        <span className="text-2xl drop-shadow-[0_0_10px_rgba(255,255,255,0.5)] group-hover:scale-125 transition-transform duration-300">{icons[idx % icons.length]}</span>
+                        <p className="text-lg md:text-xl font-medium text-emerald-50 leading-relaxed drop-shadow-[0_0_10px_rgba(16,185,129,0.3)] tracking-wide">
+                          {sentence.trim()}
+                        </p>
+                      </div>
+                    ));
+                  })()}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -545,14 +565,14 @@ export default function PropertyDetailPage() {
 
           </div>
 
-          {/* 🚀 RIGHT COLUMN: Chatbot (Pure Glass & Secure Header) */}
-          <div className={`
-            ${isMobileChatOpen ? 'fixed inset-0 z-[9999] p-4 pt-16 flex flex-col bg-slate-900/40 backdrop-blur-md' : 'hidden lg:flex'}
-            w-full lg:w-1/3 lg:flex-col lg:sticky lg:top-24 lg:h-[calc(100vh-120px)] lg:p-0 lg:bg-transparent lg:z-40
-          `}>
+        {/* 🚀 RIGHT COLUMN: Chatbot (Pure Glass & Secure Header) */}
+        <div className={`
+          ${isMobileChatOpen ? 'fixed inset-0 z-[999999] p-4 pt-28 flex flex-col bg-brand-dark/50 backdrop-blur-xl' : 'hidden lg:flex'}
+          w-full lg:w-1/3 lg:flex-col lg:sticky lg:top-24 lg:h-[calc(100vh-120px)] lg:p-0 lg:bg-transparent lg:z-40
+        `}>
 
-            <div className="bg-white/5 lg:bg-slate-900/30 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-glass flex flex-col h-full overflow-hidden ring-1 ring-white/20">
-
+          <div className="bg-glass-gradient backdrop-blur-3xl border border-white/10 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col h-full overflow-hidden ring-1 ring-white/20">
+              
               <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5 shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-ai/20 rounded-full relative"><Bot className="w-5 h-5 text-ai-light" /><span className="absolute top-0 right-0 w-2 h-2 bg-emerald-400 rounded-full animate-pulse border border-slate-900"></span></div>
@@ -611,7 +631,7 @@ export default function PropertyDetailPage() {
 
         {/* 🚀 UPGRADE: Recommended Properties Prices Now Use Full Formulation */}
         {similarProperties.length > 0 && (
-          <div className="w-full mt-12 pt-8 border-t border-white/10 relative z-20 bg-brand-dark">
+          <div className="w-full mt-12 pt-8 border-t border-white/10 relative z-0 bg-brand-dark">
             <h2 className="text-2xl font-bold text-white flex items-center gap-2 mb-6"><Sparkles className="w-6 h-6 text-emerald-400" /> Recommended {property.category}s in {property.location}</h2>
             <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar snap-x snap-mandatory">
               {similarProperties.map((simProp) => (
@@ -643,7 +663,7 @@ export default function PropertyDetailPage() {
 
       {/* FULL SCREEN LIGHTBOX GALLERY */}
       {isGalleryOpen && (
-        <div className="fixed inset-0 z-999 bg-black/95 backdrop-blur-xl flex items-center justify-center animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[999999] bg-black/95 backdrop-blur-xl flex items-center justify-center animate-in fade-in duration-300">
           <button onClick={() => setIsGalleryOpen(false)} className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-50">
             <X className="w-6 h-6" />
           </button>
