@@ -2329,7 +2329,7 @@ function PropertyUploadForm({ activeUser, onSuccess }: { activeUser: any, onSucc
     };
 
     try {
-      const uploadedUrls = [];
+      const uploadedUrls: string[] = []; // 🚀 Added explicit typing here!
       
       // 🚀 THE TRUE FIX: Dynamically import the library only on the client side
       const imageCompressionModule = await import('browser-image-compression');
@@ -2647,8 +2647,17 @@ function EditPropertyForm({ initialData, activeUser, onClose, onSuccess }: { ini
     };
 
     try {
-      const uploadedUrls = [];
+      // 1. Explicitly type the array just like we did above
+      const uploadedUrls: string[] = []; 
+
+      // 2. Dynamically import the compression module for the Edit form
+      const imageCompressionModule = await import('browser-image-compression');
       
+      // 3. Name it 'imageCompression' so you don't have to rename it on lines 2653, 2654, etc.
+      const imageCompression = imageCompressionModule.default || imageCompressionModule;
+
+      // ... the rest of your code continues normally below this
+            
       // 🚨 WEBPACK ESM/CJS FIX
       const compressFn = typeof imageCompression === "function" 
         ? imageCompression 
