@@ -1,15 +1,39 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Mic, Sparkles, Send, Bot, Star, User, MapPin, TrendingUp, LayoutList, Map as MapIcon, ChevronRight, Flame, Calculator, Play, Building, ShieldCheck, ExternalLink, Image as ImageIcon, FileText, Phone, X } from "lucide-react";
+// 🚀 THE FIX: ArrowRight has been added to the import list below
+import { 
+  Mic, Sparkles, Send, Bot, Star, User, MapPin, TrendingUp, 
+  LayoutList, Map as MapIcon, ChevronRight, Flame, Calculator, 
+  Play, Building, ShieldCheck, ExternalLink, Image as ImageIcon, 
+  FileText, Phone, X, ArrowRight 
+} from "lucide-react";
 import Link from "next/link";
 
 // --- Interfaces ---
-interface Property { id: string; title: string; price: string; matchScore: string; roiBadge: string; imageUrl: string; isFeatured: boolean; }
+interface Property { id: string; title: string; price: number; priceFormatted: string; matchScore: string; roiBadge: string; imageUrl: string; isFeatured: boolean; }
 interface Message { role: "user" | "ai"; content: string; }
 interface LeadData { score: number; extractedName: string; extractedLocation: string; extractedBudget: string; intent: string; }
 interface AdData { id: string; title: string; imageUrl: string; placement: string; }
 interface Lifestyle { id: string; title: string; countText: string; imageUrl: string; targetUrl: string; isActive: boolean; }
+interface MegaProject { id: string; title: string; slug: string; location: string; startingPrice: number; estRoi: string; agencyName: string; coverImage: string; }
+
+// 🚀 NUMBER FORMATTER ALGORITHM (Lakhs & Crores)
+const formatFullPKR = (value: any) => {
+  const num = Number(value);
+  if (isNaN(num) || num === 0) return "Contact for Price";
+  if (num >= 10000000) {
+    const crores = Math.floor(num / 10000000);
+    const lakhs = Math.floor((num % 10000000) / 100000);
+    return lakhs > 0 ? `${crores} Crore ${lakhs} Lakhs` : `${crores} Crore`;
+  }
+  if (num >= 100000) {
+    const lakhs = Math.floor(num / 100000);
+    const thousands = Math.floor((num % 100000) / 1000);
+    return thousands > 0 ? `${lakhs} Lakhs ${thousands} Thousand` : `${lakhs} Lakhs`;
+  }
+  return num.toLocaleString();
+};
 
 // --- Static Data ---
 const QUICK_PROMPTS = [
@@ -27,6 +51,7 @@ export default function Home() {
   const [sidebarAd, setSidebarAd] = useState<AdData | null>(null);
   const [featuredProperties, setFeaturedProperties] = useState<Property[]>([]);
   const [lifestyleCollections, setLifestyleCollections] = useState<Lifestyle[]>([]);
+  const [megaProjects, setMegaProjects] = useState<MegaProject[]>([]); 
 
   // 🧠 Sticky Chat Session State & Mobile Toggle
   const [sessionId, setSessionId] = useState<string>("");
@@ -79,26 +104,36 @@ export default function Home() {
 
     const fetchInitialData = async () => {
       try {
-        const resAds = await fetch('/api/ads');
-        if (resAds.ok) {
+        // 🚀 PARALLEL FETCHING ENGINE
+        const [resAds, resProps, resLifestyles, resProjects] = await Promise.all([
+          fetch('/api/ads').catch(() => null),
+          fetch('/api/inventory', { cache: 'no-store' }).catch(() => null),
+          fetch('/api/lifestyles').catch(() => null),
+          fetch('/api/projects', { cache: 'no-store' }).catch(() => null)
+        ]);
+
+        if (resAds && resAds.ok) {
           const fetchedAds = await resAds.json();
-          const homeBanner = fetchedAds.find((a: AdData) => a.placement === 'homepage');
-          const sideBanner = fetchedAds.find((a: AdData) => a.placement === 'sidebar');
+          const homeBanner = fetchedAds.find((a: any) => a.placement === 'homepage');
+          const sideBanner = fetchedAds.find((a: any) => a.placement === 'sidebar');
           if (homeBanner) setHeroAd(homeBanner);
           if (sideBanner) setSidebarAd(sideBanner);
         }
 
-        const resProps = await fetch('/api/inventory');
-        if (resProps.ok) {
+        if (resProps && resProps.ok) {
           const fetchedProps = await resProps.json();
-          const featured = fetchedProps.filter((p: Property) => p.isFeatured).slice(0, 10);
+          const featured = fetchedProps.filter((p: any) => p.isFeatured).slice(0, 10);
           setFeaturedProperties(featured);
         }
 
-        const resLifestyles = await fetch('/api/lifestyles');
-        if (resLifestyles.ok) {
+        if (resLifestyles && resLifestyles.ok) {
           const fetchedLifestyles = await resLifestyles.json();
-          setLifestyleCollections(fetchedLifestyles.filter((l: Lifestyle) => l.isActive));
+          setLifestyleCollections(fetchedLifestyles.filter((l: any) => l.isActive));
+        }
+
+        if (resProjects && resProjects.ok) {
+          const fetchedProjects = await resProjects.json();
+          setMegaProjects(fetchedProjects);
         }
       } catch (err) { console.error("Initial Data Fetch Error:", err); }
     };
@@ -112,7 +147,7 @@ export default function Home() {
     }
   }, [hasStarted, currentProperties.length, featuredProperties]);
 
-  // 🚀 FIX 1: SMART SCROLL LOGIC
+  // SMART SCROLL LOGIC
   useEffect(() => {
     if (chatScrollRef.current && messages.length > 0) {
       const userMessages = chatScrollRef.current.querySelectorAll('.user-message-marker');
@@ -155,9 +190,21 @@ export default function Home() {
       if (res.ok && data.reply) {
         const finalMessages: Message[] = [...newMessages, { role: "ai", content: data.reply }];
         setMessages(finalMessages); setLeadData(data.leadData);
+        
         if (data.properties && data.properties.length > 0) {
           setCurrentProperties(data.properties);
-          sessionStorage.setItem("lpg_current_props", JSON.stringify(data.properties));
+          
+          try {
+            // 🚀 ELITE FIX: Strip out massive Base64 images before saving to browser memory
+            const liteProperties = data.properties.map((p: any) => ({
+              ...p,
+              // If it's a massive uploaded file, don't cache it. If it's a normal URL, keep it.
+              imageUrl: p.imageUrl?.startsWith('data:image') ? '' : p.imageUrl 
+            }));
+            sessionStorage.setItem("lpg_current_props", JSON.stringify(liteProperties));
+          } catch (storageError) {
+            console.warn("Session storage limit reached, safely bypassing cache.");
+          }
         }
       }
     } catch (error) { console.error("Fetch error:", error); }
@@ -168,7 +215,7 @@ export default function Home() {
     <div className="relative w-full min-h-screen flex flex-col items-center justify-start pt-24 pb-0 px-4 md:px-8 overflow-x-hidden">
       <div className="fixed inset-0 bg-brand-dark z-0"><img src="https://images.unsplash.com/photo-1627883216894-f20387438c7f?q=80&w=2000&auto=format&fit=crop" alt="Lahore Skyline" className="w-full h-full object-cover opacity-10 mix-blend-overlay fixed" /></div>
 
-      {/* GLOBAL MOBILE FAB (HEAVY GLOW) */}
+      {/* GLOBAL MOBILE FAB */}
       {!isMobileChatOpen && (
         <button
           onClick={() => { setIsMobileChatOpen(true); setHasStarted(true); }}
@@ -204,6 +251,7 @@ export default function Home() {
         {/* --- PRE-CHAT EXTENDED HOMEPAGE --- */}
         {!hasStarted && (
           <div className="w-full flex flex-col gap-16 animate-in fade-in duration-1000 delay-300 pb-24">
+            
             {/* DYNAMIC HOMEPAGE AD PLACEMENT */}
             {heroAd && (
               <div className="relative w-full h-32 md:h-48 rounded-3xl overflow-hidden border border-white/10 shadow-[0_0_40px_rgba(255,255,255,0.05)] group cursor-pointer animate-in zoom-in-95 duration-700">
@@ -219,7 +267,7 @@ export default function Home() {
               </div>
             )}
 
-            {/* Row 1: Market Intel & Carousel */}
+            {/* Row 1: Market Intel & Premium Carousel */}
             <div className="w-full flex flex-col lg:flex-row gap-8">
               <div className="w-full lg:w-1/3 bg-glass-gradient backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-glass flex flex-col">
                 <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/10">
@@ -250,10 +298,17 @@ export default function Home() {
                 <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar snap-x snap-mandatory">
                   {featuredProperties.map((prop) => (
                     <Link href={`/properties/${prop.id}`} key={prop.id} className="min-w-[280px] w-[280px] shrink-0 snap-start group block">
-                      <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-gold/50 transition-colors cursor-pointer relative h-full">
-                        <div className="absolute top-3 left-3 z-20 bg-gold text-white text-[10px] uppercase font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-lg"><Star className="w-3 h-3 fill-current" /> Featured</div>
-                        <div className="h-40 overflow-hidden"><img src={prop.imageUrl} alt={prop.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" /></div>
-                        <div className="p-4"><h4 className="text-lg font-bold text-white line-clamp-1 mb-1 group-hover:text-gold-light transition-colors">{prop.title}</h4><p className="text-emerald-light font-semibold">{prop.price || (prop as any).priceFormatted}</p></div>
+                      <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-gold/50 transition-colors cursor-pointer relative h-full flex flex-col">
+                        <div className="absolute top-3 left-3 z-20 bg-gold text-white text-[10px] uppercase font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-lg">
+                          <Star className="w-3 h-3 fill-current" /> Featured
+                        </div>
+                        <div className="h-40 overflow-hidden shrink-0">
+                          <img src={prop.imageUrl} alt={prop.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                        </div>
+                        <div className="p-4 flex flex-col flex-grow justify-between">
+                          <h4 className="text-lg font-bold text-white line-clamp-1 mb-1 group-hover:text-gold-light transition-colors">{prop.title}</h4>
+                          <p className="text-emerald-400 font-black text-lg">{prop.price ? formatFullPKR(prop.price) : prop.priceFormatted}</p>
+                        </div>
                       </div>
                     </Link>
                   ))}
@@ -264,16 +319,77 @@ export default function Home() {
               </div>
             </div>
 
+            {/* 🚀 PREMIUM MEGA PROJECTS */}
+            <div className="w-full flex flex-col items-center pt-8 border-t border-white/10">
+              <div className="text-center mb-10">
+                <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest flex items-center gap-2 justify-center w-max mx-auto mb-4">
+                  <Sparkles className="w-3 h-3" /> Live Developments
+                </span>
+                <h2 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-4">Premium Mega <span className="text-emerald-400">Projects</span></h2>
+                <p className="text-gray-400 max-w-2xl mx-auto">Discover highly vetted, AI-approved mega developments. Secure your allocation before public launch.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
+                {megaProjects.map((project) => (
+                  <Link href={`/projects/${project.slug || project.id}`} key={project.id} className="group">
+                    <div className="bg-[#101726] border border-white/10 rounded-3xl overflow-hidden hover:border-emerald-500/50 hover:shadow-[0_0_40px_rgba(16,185,129,0.15)] transition-all duration-500 flex flex-col h-full relative">
+                      
+                      <div className="absolute top-4 left-4 z-20 bg-brand-dark/80 backdrop-blur-md text-emerald-400 text-[10px] font-black px-3 py-1.5 rounded-full border border-emerald-500/30 flex items-center gap-1.5 shadow-lg">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Off-Plan
+                      </div>
+
+                      <div className="h-56 overflow-hidden relative">
+                        <img src={project.coverImage} alt={project.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#101726] to-transparent opacity-90"></div>
+                      </div>
+
+                      <div className="p-6 flex flex-col flex-grow relative -mt-16 z-10">
+                        <h4 className="text-xl font-bold text-white mb-2 line-clamp-2 group-hover:text-emerald-400 transition-colors">{project.title}</h4>
+                        <p className="text-xs text-gray-400 mb-6 flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-blue-400" /> {project.location}</p>
+                        
+                        <div className="grid grid-cols-2 gap-4 mb-6">
+                          <div className="bg-white/5 border border-white/5 rounded-2xl p-3">
+                            <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest mb-1">Starting From</p>
+                            <p className="text-emerald-400 font-black text-lg">{formatFullPKR(project.startingPrice)}</p>
+                          </div>
+                          <div className="bg-white/5 border border-white/5 rounded-2xl p-3">
+                            <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest mb-1">Est. ROI</p>
+                            <p className="text-blue-400 font-bold text-lg flex items-center gap-1"><TrendingUp className="w-4 h-4" /> {project.estRoi}</p>
+                          </div>
+                        </div>
+
+                        <div className="mt-auto flex items-center justify-between border-t border-white/10 pt-4">
+                          <div className="flex items-center gap-2">
+                            <Building className="w-4 h-4 text-gray-500" />
+                            <span className="text-xs text-gray-400 font-medium">{project.agencyName}</span>
+                          </div>
+                          <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-brand-dark transition-colors">
+                            <ArrowRight className="w-4 h-4" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+                {megaProjects.length === 0 && <p className="text-gray-500 col-span-3 text-center py-8">Loading mega projects...</p>}
+              </div>
+            </div>
+
             {/* Row 2: Lifestyle Collections */}
             <div>
-              <div className="flex items-center justify-between mb-6"><h3 className="text-2xl font-bold text-white flex items-center gap-2"><Building className="w-6 h-6 text-ai-light" /> Explore by Lifestyle</h3></div>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-white flex items-center gap-2"><Building className="w-6 h-6 text-ai-light" /> Explore by Lifestyle</h3>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {lifestyleCollections.map((collection) => (
                   <Link href={collection.targetUrl || "#"} key={collection.id}>
                     <div className="group relative h-72 rounded-3xl overflow-hidden cursor-pointer shadow-glass border border-white/10">
                       <img src={collection.imageUrl} alt={collection.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                       <div className="absolute inset-0 bg-gradient-to-t from-brand-dark via-brand-dark/40 to-transparent"></div>
-                      <div className="absolute bottom-6 left-6 right-6"><h4 className="text-2xl font-bold text-white mb-1">{collection.title}</h4><p className="text-sm text-ai-light font-medium">{collection.countText}</p></div>
+                      <div className="absolute bottom-6 left-6 right-6">
+                        <h4 className="text-2xl font-bold text-white mb-1">{collection.title}</h4>
+                        <p className="text-sm text-ai-light font-medium">{collection.countText}</p>
+                      </div>
                     </div>
                   </Link>
                 ))}
@@ -296,10 +412,13 @@ export default function Home() {
                   <p className="text-4xl font-extrabold text-emerald-400">PKR {(investment * 1.58).toFixed(1)} Cr*</p>
                 </div>
               </div>
+              
               <div className="w-full lg:w-1/2 relative rounded-3xl overflow-hidden shadow-glass border border-white/10 group cursor-pointer h-[400px]">
                 <img src="https://images.unsplash.com/photo-1473968512647-3e447244af8f?q=80&w=1200&auto=format&fit=crop" alt="Drone View" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                 <div className="absolute inset-0 bg-brand-dark/40 group-hover:bg-brand-dark/20 transition-colors flex flex-col items-center justify-center">
-                  <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 group-hover:scale-110 transition-transform shadow-[0_0_30px_rgba(255,255,255,0.2)]"><Play className="w-8 h-8 text-white ml-1" /></div>
+                  <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 group-hover:scale-110 transition-transform shadow-[0_0_30px_rgba(255,255,255,0.2)]">
+                    <Play className="w-8 h-8 text-white ml-1" />
+                  </div>
                   <h3 className="text-2xl font-bold text-white mt-6 drop-shadow-lg">Cinematic Drone Tours</h3>
                   <p className="text-white/80 mt-2 font-medium">Explore DHA Phase 9 Prism from above</p>
                 </div>
@@ -315,6 +434,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                
                 <Link href="/heatmap" className="group">
                   <div className="bg-glass-gradient backdrop-blur-xl border border-white/10 p-6 rounded-3xl shadow-glass hover:border-ai/50 hover:shadow-[0_0_30px_rgba(139,92,246,0.15)] transition-all h-full">
                     <div className="w-12 h-12 bg-ai/20 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"><MapIcon className="w-6 h-6 text-ai-light" /></div>
@@ -362,6 +482,7 @@ export default function Home() {
                     <p className="text-sm text-gray-400">Get direct support from our master admins for onboarding or premium B2B queries.</p>
                   </div>
                 </Link>
+                
               </div>
             </div>
 
@@ -382,15 +503,13 @@ export default function Home() {
         {hasStarted && (
           <div className="w-full flex flex-col lg:flex-row gap-6 items-start animate-in fade-in slide-in-from-bottom-4 duration-700">
 
-            {/* 🚀 FIX: Switched to inline Tailwind for perfect pure-glass transparency */}
             <div className={`
               ${isMobileChatOpen ? 'fixed inset-0 z-[9999] p-4 pt-16 flex flex-col bg-slate-900/40 backdrop-blur-md' : 'hidden lg:flex'}
               w-full lg:w-1/3 lg:flex-col lg:sticky lg:top-24 lg:h-[calc(100vh-120px)] lg:p-0 lg:bg-transparent lg:z-40 shrink-0
             `}>
 
-              {/* 🚀 FIX: Pure white/5 and slate-900/30 glass layer with backdrop blur */}
               <div className="bg-white/5 lg:bg-slate-900/30 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-glass flex flex-col h-full overflow-hidden ring-1 ring-white/20">
-                
+
                 <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5 shrink-0">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-ai/20 rounded-full relative">
@@ -402,13 +521,12 @@ export default function Home() {
                       <p className="text-xs text-emerald-light">Online • Lahore Expert</p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-4">
-                    {/* The new Safe Mobile [X] Button */}
                     <button onClick={() => setIsMobileChatOpen(false)} className="lg:hidden p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors border border-white/10">
                       <X className="w-5 h-5" />
                     </button>
-                    
+
                     {leadData && (
                       <div className="hidden md:flex flex-col items-end text-xs text-gray-400">
                         <span title="Secret B2B Lead Score" className="font-bold text-white">Score: {leadData.score}/100</span>
@@ -421,11 +539,12 @@ export default function Home() {
                 <div ref={chatScrollRef} className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4 custom-scrollbar bg-transparent">
                   {messages.map((msg, idx) => (
                     <div key={idx} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse user-message-marker' : 'flex-row'}`}>
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-lg ${msg.role === 'user' ?
-                        'bg-brand-light' : 'bg-ai/30 border border-ai/50'}`}>{msg.role === 'user' ?
-                        <User className="w-4 h-4 text-white" /> : <Bot className="w-4 h-4 text-ai-light" />}</div>
-                      <div className={`p-3 rounded-2xl max-w-[85%] text-sm md:text-base shadow-md ${msg.role === 'user' ?
-                        'bg-brand-light text-white rounded-tr-none' : 'bg-white/10 backdrop-blur-md text-gray-100 rounded-tl-none border border-white/10'}`}><p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p></div>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-lg ${msg.role === 'user' ? 'bg-brand-light' : 'bg-ai/30 border border-ai/50'}`}>
+                        {msg.role === 'user' ? <User className="w-4 h-4 text-white" /> : <Bot className="w-4 h-4 text-ai-light" />}
+                      </div>
+                      <div className={`p-3 rounded-2xl max-w-[85%] text-sm md:text-base shadow-md ${msg.role === 'user' ? 'bg-brand-light text-white rounded-tr-none' : 'bg-white/10 backdrop-blur-md text-gray-100 rounded-tl-none border border-white/10'}`}>
+                        <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                      </div>
                     </div>
                   ))}
                   {isLoading && (
@@ -461,28 +580,45 @@ export default function Home() {
               {currentProperties.length > 0 && (
                 <div className="flex justify-end mb-2">
                   <div className="bg-glass-gradient backdrop-blur-md border border-white/10 p-1 rounded-full flex gap-1">
-                    <button onClick={() => setViewMode('list')} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${viewMode === 'list' ?
-                      'bg-white/10 text-white' : 'text-gray-400 hover:text-white'}`}><LayoutList className="w-4 h-4" /> List</button>
-                    <button onClick={() => setViewMode('map')} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${viewMode === 'map' ?
-                      'bg-white/10 text-white' : 'text-gray-400 hover:text-white'}`}><MapIcon className="w-4 h-4" /> Radar Map</button>
+                    <button onClick={() => setViewMode('list')} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${viewMode === 'list' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'}`}>
+                      <LayoutList className="w-4 h-4" /> List
+                    </button>
+                    <button onClick={() => setViewMode('map')} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${viewMode === 'map' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'}`}>
+                      <MapIcon className="w-4 h-4" /> Radar Map
+                    </button>
                   </div>
                 </div>
               )}
 
-              {currentProperties.length === 0 && isLoading && <div className="w-full h-64 border border-dashed border-white/20 rounded-3xl flex items-center justify-center text-gray-500 bg-brand-dark/20 backdrop-blur-sm">AI is analyzing the market for you...</div>}
+              {currentProperties.length === 0 && isLoading && (
+                <div className="w-full h-64 border border-dashed border-white/20 rounded-3xl flex items-center justify-center text-gray-500 bg-brand-dark/20 backdrop-blur-sm">
+                  AI is analyzing the market for you...
+                </div>
+              )}
 
               {viewMode === 'list' && currentProperties.map((prop, idx) => (
                 <Link href={`/properties/${prop.id}`} key={`${prop.id}-${idx}`} className="block">
-                  <div className={`group backdrop-blur-md border rounded-3xl overflow-hidden flex flex-col sm:flex-row transition-all duration-300 cursor-pointer ${prop.isFeatured ?
-                    'bg-gold/5 border-gold/40 shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:border-gold/70 hover:-translate-y-1' : 'bg-brand-dark/40 border-white/10 shadow-glass hover:border-ai/50 hover:-translate-y-1'}`}>
+                  <div className={`group backdrop-blur-md border rounded-3xl overflow-hidden flex flex-col sm:flex-row transition-all duration-300 cursor-pointer ${prop.isFeatured ? 'bg-gold/5 border-gold/40 shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:border-gold/70 hover:-translate-y-1' : 'bg-brand-dark/40 border-white/10 shadow-glass hover:border-ai/50 hover:-translate-y-1'}`}>
+                    
                     <div className="sm:w-2/5 h-48 sm:h-auto overflow-hidden relative shrink-0">
-                      {prop.isFeatured && <div className="absolute top-3 left-3 z-20 bg-gold text-white text-[10px] uppercase font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-lg"><Star className="w-3 h-3 fill-current" /> Featured</div>}
+                      {prop.isFeatured && (
+                        <div className="absolute top-3 left-3 z-20 bg-gold text-white text-[10px] uppercase font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-lg">
+                          <Star className="w-3 h-3 fill-current" /> Featured
+                        </div>
+                      )}
                       <img src={prop.imageUrl} alt={prop.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     </div>
+                    
                     <div className="p-6 sm:w-3/5 flex flex-col justify-between">
-                      <div><h4 className={`text-xl font-bold mb-2 line-clamp-2 ${prop.isFeatured ? 'text-gold-light' : 'text-white'}`}>{prop.title}</h4><p className="text-emerald-light font-semibold text-lg mb-4">{prop.price || (prop as any).priceFormatted}</p></div>
-                      <div className="inline-flex items-center gap-2 bg-brand-light/50 border border-white/10 text-gray-300 px-3 py-1.5 rounded-full w-fit group-hover:bg-white/10 transition-colors"><Sparkles className={`w-4 h-4 shrink-0 ${prop.isFeatured ?
-                        'text-gold-light' : 'text-ai-light'}`} /><span className="text-sm font-medium">Match: Highly Relevant</span></div>
+                      <div>
+                        <h4 className={`text-xl font-bold mb-2 line-clamp-2 ${prop.isFeatured ? 'text-gold-light' : 'text-white'}`}>{prop.title}</h4>
+                        <p className="text-emerald-400 font-black text-lg mb-4">{prop.price ? formatFullPKR(prop.price) : prop.priceFormatted}</p>
+                      </div>
+                      
+                      <div className="inline-flex items-center gap-2 bg-brand-light/50 border border-white/10 text-gray-300 px-3 py-1.5 rounded-full w-fit group-hover:bg-white/10 transition-colors">
+                        <Sparkles className={`w-4 h-4 shrink-0 ${prop.isFeatured ? 'text-gold-light' : 'text-ai-light'}`} />
+                        <span className="text-sm font-medium">Match: Highly Relevant</span>
+                      </div>
                     </div>
                   </div>
                 </Link>
@@ -499,7 +635,7 @@ export default function Home() {
 
                   {currentProperties.map((prop, index) => {
                     const angle = (index * 137.5) * (Math.PI / 180);
-                    const radius = 10 + ((index * 7) % 35); 
+                    const radius = 10 + ((index * 7) % 35);
                     const top = 50 + radius * Math.sin(angle);
                     const left = 50 + radius * Math.cos(angle);
 
@@ -509,16 +645,18 @@ export default function Home() {
                           <div className={`w-4 h-4 rounded-full shadow-lg border-2 border-[#0A1128] z-20 relative ${prop.isFeatured ? 'bg-gold shadow-[0_0_20px_rgba(245,158,11,1)] animate-pulse' : 'bg-ai shadow-[0_0_20px_rgba(139,92,246,1)]'}`}></div>
                           <div className={`absolute inset-0 rounded-full animate-ping opacity-75 ${prop.isFeatured ? 'bg-gold' : 'bg-ai'}`}></div>
                         </div>
-                        
+
                         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-48 bg-glass-gradient backdrop-blur-xl border border-white/20 rounded-xl p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-2xl z-50 scale-95 group-hover:scale-100 duration-200">
                           <img src={prop.imageUrl} className="w-full h-20 object-cover rounded-md mb-2 shadow-inner" />
                           <p className={`text-xs font-bold line-clamp-2 ${prop.isFeatured ? 'text-gold-light' : 'text-white'}`}>{prop.title}</p>
-                          <p className="text-emerald-400 text-sm font-black mt-1">{prop.price || (prop as any).priceFormatted}</p>
+                          <p className="text-emerald-400 text-sm font-black mt-1">{prop.price ? formatFullPKR(prop.price) : prop.priceFormatted}</p>
                         </div>
                       </Link>
                     );
                   })}
-                  <div className="absolute bottom-4 left-4 bg-brand-dark/90 backdrop-blur-md border border-white/20 px-4 py-2 rounded-xl flex items-center gap-2 z-20 shadow-lg"><MapPin className="w-4 h-4 text-ai-light" /> <span className="text-sm font-bold text-white">Radar Tracking: {currentProperties.length} Assets</span></div>
+                  <div className="absolute bottom-4 left-4 bg-brand-dark/90 backdrop-blur-md border border-white/20 px-4 py-2 rounded-xl flex items-center gap-2 z-20 shadow-lg">
+                    <MapPin className="w-4 h-4 text-ai-light" /> <span className="text-sm font-bold text-white">Radar Tracking: {currentProperties.length} Assets</span>
+                  </div>
                 </div>
               )}
             </div>

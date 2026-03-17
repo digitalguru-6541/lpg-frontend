@@ -226,3 +226,23 @@ model ChatMessage {
 
   @@index([sessionId])
 }
+
+model MegaProject {
+  id             String   @id @default(uuid())
+  title          String
+  slug           String   @unique
+  location       String
+  startingPrice  Float
+  estRoi         String
+  agencyName     String
+  coverImage     String   @default("https://images.unsplash.com/photo-1610641818989-c2051b5e2cfd?q=80&w=2000&auto=format&fit=crop")
+  galleryImages  String[] 
+  projectType    String   @default("Commercial High-Rise")
+  totalFloors    Int      @default(26)
+  possessionDate String   @default("Q4 2028")
+  description    String   @db.Text @default("Description pending...")
+  customFeatures Json     @default("[]")
+  videoUrl       String?  @db.Text // 🚀 NEW FIELD FOR EMBEDDED VIDEOS
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}

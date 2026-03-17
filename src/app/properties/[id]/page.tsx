@@ -104,7 +104,7 @@ export default function PropertyDetailPage() {
           }
         }
 
-        const res = await fetch(`/api/properties/${propertyId}`);
+        const res = await fetch(`/api/properties/${propertyId}`, { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           setProperty(data.property);

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import {
   LayoutDashboard, FileSearch, Megaphone, GitMerge, DollarSign, Settings,
-  Bell, AlertTriangle, CheckCircle, CheckCircle2, UploadCloud, Save, Plus, Phone, Building, Star, ImageIcon, Trash2, Edit, Link as LinkIcon, X, Users, Target, MessageSquare, Clock, Sparkles, LogOut, UserCog, Search, RefreshCw
+  Bell, AlertTriangle, CheckCircle, CheckCircle2, UploadCloud, Save, Plus, Phone, Building, Star, ImageIcon, Trash2, Edit, Link as LinkIcon, X, Users, Target, MessageSquare, Clock, Sparkles, LogOut, UserCog, Search, RefreshCw, Briefcase, FileEdit
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import Link from "next/link";
@@ -57,6 +57,19 @@ export default function CommandCenter() {
 
   // 🚀 SYNC STATE
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [editingProject, setEditingProject] = useState<any | null>(null);
+  const [activeFeatures, setActiveFeatures] = useState<{title: string, description: string}[]>([]);
+
+  // 🚀 NEW: Project Deletion Logic
+  const handleDeleteProject = async (id: string) => {
+    if (confirm("Are you sure you want to permanently delete this Mega Project?")) {
+      try {
+        const res = await fetch('/api/projects', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+        if (res.ok) fetchAllData();
+      } catch (err) { console.error(err); }
+    }
+  };
 
   // --- REAL LIVE STATES ---
   const [properties, setProperties] = useState<any[]>([]);
@@ -96,18 +109,20 @@ export default function CommandCenter() {
 
     // 1. Fetch core app data (Properties, Leads, etc)
     try {
-      const [propsRes, lifeRes, adsRes, setRes, leadsRes] = await Promise.all([
+      const [propsRes, lifeRes, adsRes, setRes, leadsRes, projRes] = await Promise.all([
         fetch(`/api/inventory?t=${ts}`, { cache: 'no-store' }),
         fetch(`/api/lifestyles?t=${ts}`, { cache: 'no-store' }),
         fetch(`/api/ads?t=${ts}`, { cache: 'no-store' }),
         fetch(`/api/settings?t=${ts}`, { cache: 'no-store' }),
-        fetch(`/api/leads?t=${ts}`, { cache: 'no-store' })
+        fetch(`/api/leads?t=${ts}`, { cache: 'no-store' }),
+        fetch(`/api/projects?t=${ts}`, { cache: 'no-store' })
       ]);
 
       if (propsRes.ok) setProperties(await propsRes.json());
       if (lifeRes.ok) setLifestyles(await lifeRes.json());
       if (adsRes.ok) setAds(await adsRes.json());
       if (leadsRes.ok) setLeads(await leadsRes.json());
+      if (projRes.ok) setProjects(await projRes.json());
       if (setRes.ok) {
         const s = await setRes.json();
         setSettings({ ...s });
@@ -119,7 +134,7 @@ export default function CommandCenter() {
     // 2. Fetch Users EXPLICTLY and safely (Notice the path is /api/user to match your folder)
     try {
       const usersRes = await fetch(`/api/user?t=${ts}`, { cache: 'no-store' });
-      
+
       if (usersRes.ok) {
         const userData = await usersRes.json();
         setAllUsers(Array.isArray(userData) ? userData : []);
@@ -320,6 +335,7 @@ export default function CommandCenter() {
           <SidebarBtn icon={LayoutDashboard} label="Dashboard" active={activeTab==='dashboard'} onClick={() => setActiveTab('dashboard')} />
           <SidebarBtn icon={Users} label="Lead Intelligence" active={activeTab==='leads'} onClick={() => setActiveTab('leads')} />
           <SidebarBtn icon={Building} label="Inventory & Content" active={activeTab==='inventory'} onClick={() => setActiveTab('inventory')} />
+          <SidebarBtn icon={Briefcase} label="Mega Projects" active={activeTab==='projects'} onClick={() => setActiveTab('projects')} />
           <SidebarBtn icon={UserCog} label="User Management" active={activeTab==='users'} onClick={() => setActiveTab('users')} />
           <SidebarBtn icon={FileSearch} label="Commission Auditing" active={activeTab==='auditing'} onClick={() => setActiveTab('auditing')} />
           <SidebarBtn icon={Megaphone} label="Global Ad Manager" active={activeTab==='ads'} onClick={() => setActiveTab('ads')} />
@@ -417,20 +433,49 @@ export default function CommandCenter() {
 
           {/* EDIT PROPERTY MODAL */}
           {editingProperty && (
-            <div className="fixed inset-0 z-[200] bg-brand-dark/80 backdrop-blur-sm flex items-center justify-center p-4">
-              <div className="bg-[#162032] border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-xl font-bold text-white">Edit Property</h3>
-                  <button onClick={() => setEditingProperty(null)} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+            <div className="fixed inset-0 z-[500] bg-brand-dark/90 backdrop-blur-sm flex items-start justify-center p-4 py-12 overflow-y-auto">
+              <div className="bg-[#162032] border border-white/10 rounded-2xl p-8 w-full max-w-4xl shadow-2xl animate-in zoom-in-95 duration-200 relative my-auto shrink-0">
+                <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+                  <h3 className="text-2xl font-bold text-white">Edit Full Listing Details</h3>
+                  <button onClick={() => setEditingProperty(null)} className="p-2 bg-white/5 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
                 </div>
-                <form onSubmit={handleEditSubmit} className="space-y-4">
-                  <div><label className="text-xs text-gray-400 mb-1 block">Title</label><input value={editingProperty.title} onChange={e=>setEditingProperty({...editingProperty, title: e.target.value})} className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-blue-500" /></div>
-                  <div><label className="text-xs text-gray-400 mb-1 block">Price (Formatted for UI)</label><input value={editingProperty.priceFormatted} onChange={e=>setEditingProperty({...editingProperty, priceFormatted: e.target.value})} className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-blue-500" /></div>
-                  <div><label className="text-xs text-gray-400 mb-1 block">Agency Name</label><input value={editingProperty.agencyName} onChange={e=>setEditingProperty({...editingProperty, agencyName: e.target.value})} className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-blue-500" /></div>
-                  <div><label className="text-xs text-gray-400 mb-1 block">Image URL</label><input value={editingProperty.imageUrl} onChange={e=>setEditingProperty({...editingProperty, imageUrl: e.target.value})} className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-blue-500" /></div>
-                  <div className="flex gap-3 pt-4">
-                    <button type="button" onClick={() => setEditingProperty(null)} className="flex-1 py-3 rounded-lg font-bold text-gray-400 hover:bg-white/5 border border-transparent hover:border-white/10 transition-colors">Cancel</button>
-                    <button type="submit" className="flex-1 bg-blue-500 hover:bg-blue-400 text-white py-3 rounded-lg font-bold transition-colors">Save Changes</button>
+                <form onSubmit={handleEditSubmit} className="space-y-6">
+
+                  {/* Core Details */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label className="text-xs text-gray-400 mb-1 block">Title</label><input value={editingProperty.title || ''} onChange={e=>setEditingProperty({...editingProperty, title: e.target.value})} className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-blue-500" /></div>
+                    <div><label className="text-xs text-gray-400 mb-1 block">Display Price</label><input value={editingProperty.priceFormatted || ''} onChange={e=>setEditingProperty({...editingProperty, priceFormatted: e.target.value})} className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-blue-500" /></div>
+                  </div>
+
+                  {/* Location & Size */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div><label className="text-xs text-gray-400 mb-1 block">Location</label><input value={editingProperty.location || ''} onChange={e=>setEditingProperty({...editingProperty, location: e.target.value})} className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-blue-500" /></div>
+                    <div><label className="text-xs text-gray-400 mb-1 block">Area Size</label><input value={editingProperty.size || ''} onChange={e=>setEditingProperty({...editingProperty, size: e.target.value})} className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-blue-500" /></div>
+                    <div><label className="text-xs text-gray-400 mb-1 block">Purpose</label><select value={editingProperty.purpose || 'buy'} onChange={e=>setEditingProperty({...editingProperty, purpose: e.target.value})} className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-blue-500 appearance-none"><option value="buy">For Sale</option><option value="rent">For Rent</option></select></div>
+                  </div>
+
+                  {/* Features */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div><label className="text-xs text-gray-400 mb-1 block">Bedrooms (or Rooms)</label><input type="number" value={editingProperty.bedrooms || ''} onChange={e=>setEditingProperty({...editingProperty, bedrooms: Number(e.target.value)})} className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-blue-500" /></div>
+                    <div><label className="text-xs text-gray-400 mb-1 block">Bathrooms</label><input type="number" value={editingProperty.bathrooms || ''} onChange={e=>setEditingProperty({...editingProperty, bathrooms: Number(e.target.value)})} className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-blue-500" /></div>
+                    <div><label className="text-xs text-gray-400 mb-1 block">Payment Mode</label><select value={editingProperty.paymentMode || 'Cash'} onChange={e=>setEditingProperty({...editingProperty, paymentMode: e.target.value})} className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-blue-500 appearance-none"><option value="Cash">Cash</option><option value="Installment">Installment</option></select></div>
+                  </div>
+
+                  {/* Property Overview */}
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Property Overview / Description</label>
+                    <textarea value={editingProperty.description || ''} onChange={e=>setEditingProperty({...editingProperty, description: e.target.value})} className="w-full h-32 bg-brand-dark border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-blue-500 custom-scrollbar resize-none" placeholder="Write the full property description here..." />
+                  </div>
+
+                  {/* Images & Agency */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label className="text-xs text-gray-400 mb-1 block">Main Image URL</label><input value={editingProperty.imageUrl || ''} onChange={e=>setEditingProperty({...editingProperty, imageUrl: e.target.value})} className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-blue-500" /></div>
+                    <div><label className="text-xs text-gray-400 mb-1 block">Agency Name</label><input value={editingProperty.agencyName || ''} onChange={e=>setEditingProperty({...editingProperty, agencyName: e.target.value})} className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-blue-500" /></div>
+                  </div>
+
+                  <div className="flex gap-3 pt-4 border-t border-white/10">
+                    <button type="button" onClick={() => setEditingProperty(null)} className="flex-1 py-4 rounded-xl font-bold text-gray-400 hover:bg-white/5 border border-transparent hover:border-white/10 transition-colors">Cancel</button>
+                    <button type="submit" className="flex-1 bg-blue-500 hover:bg-blue-400 text-white py-4 rounded-xl font-bold transition-colors shadow-lg">Save Full Listing</button>
                   </div>
                 </form>
               </div>
@@ -461,7 +506,7 @@ export default function CommandCenter() {
                   <div className="bg-brand-dark/50 border border-white/5 p-4 rounded-2xl flex flex-col gap-3">
                     <div>
                       <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-1">Assigned Agency</p>
-                      <select 
+                      <select
                         value={viewingLead.assignedAgency || "Pending Assignment"}
                         onChange={(e) => handleLeadUpdate(viewingLead.id, { assignedAgency: e.target.value })}
                         className="w-full bg-brand-dark border border-white/10 rounded-lg p-2 text-sm text-white outline-none focus:border-blue-500 cursor-pointer"
@@ -475,7 +520,7 @@ export default function CommandCenter() {
                     </div>
                     <div>
                       <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-1">Pipeline Status</p>
-                      <select 
+                      <select
                         value={viewingLead.status}
                         onChange={(e) => handleLeadUpdate(viewingLead.id, { status: e.target.value })}
                         className="w-full bg-brand-dark border border-white/10 rounded-lg p-2 text-sm text-white outline-none focus:border-blue-500 cursor-pointer uppercase"
@@ -492,8 +537,7 @@ export default function CommandCenter() {
                 </div>
 
                 <div className="flex items-center gap-4 mb-6">
-                  <div className={`w-16 h-16 rounded-full flex items-center justify-center font-black text-2xl border-4 shadow-lg ${viewingLead.score > 80 ? 
-                    'border-red-500 text-red-500 bg-red-500/10 shadow-[0_0_20px_rgba(239,68,68,0.3)]' : viewingLead.score > 50 ? 'border-gold text-gold bg-gold/10' : 'border-gray-500 text-gray-400 bg-white/5'}`}>
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center font-black text-2xl border-4 shadow-lg ${viewingLead.score > 80 ? 'border-red-500 text-red-500 bg-red-500/10 shadow-[0_0_20px_rgba(239,68,68,0.3)]' : viewingLead.score > 50 ? 'border-gold text-gold bg-gold/10' : 'border-gray-500 text-gray-400 bg-white/5'}`}>
                     {viewingLead.score}
                   </div>
                   <div>
@@ -519,30 +563,30 @@ export default function CommandCenter() {
                     <h3 className="text-lg font-bold text-white flex items-center gap-2"><UserCog className="w-5 h-5 text-ai-light" /> Master User Directory</h3>
                     <p className="text-sm text-gray-400 mt-1">Control access roles, reset passwords, and manage agency affiliations.</p>
                   </div>
-                  
+
                   {/* SEARCH & SYNC BUTTONS */}
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input 
-                        type="text" 
-                        placeholder="Search users..." 
+                      <input
+                        type="text"
+                        placeholder="Search users..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="bg-brand-dark border border-white/10 rounded-xl pl-9 pr-4 py-2 text-sm text-white focus:border-blue-500 outline-none w-full md:w-56"
                       />
                     </div>
-                    <button 
-                      onClick={fetchAllData} 
+                    <button
+                      onClick={fetchAllData}
                       disabled={isRefreshing}
                       className="flex items-center gap-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-500/20 transition-all disabled:opacity-50"
                     >
-                      <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} /> 
+                      <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                       {isRefreshing ? 'Syncing...' : 'Sync Now'}
                     </button>
                   </div>
                 </div>
-                
+
                 <div className="overflow-x-auto pb-4">
                   <table className="w-full text-left text-sm whitespace-nowrap">
                     <thead>
@@ -629,7 +673,7 @@ export default function CommandCenter() {
                           <td className="py-4 px-4">
                             <span className={`px-2 py-1 rounded text-xs font-bold ${lead.score > 80 ? 'bg-red-500/20 text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'bg-white/10 text-gray-300'}`}>{lead.score}/100</span>
                           </td>
-                          
+
                           <td className="py-4 px-4">
                             <TableSLATimer createdAt={lead.createdAt} status={lead.status} />
                           </td>
@@ -680,8 +724,7 @@ export default function CommandCenter() {
                           <td className="py-3 text-gray-400">{prop.agencyName}</td>
                           <td className="py-3 text-emerald-400 font-medium">{prop.priceFormatted}</td>
                           <td className="py-3 flex justify-center">
-                            <button onClick={() => toggleFeatured(prop.id, prop.isFeatured)} className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${prop.isFeatured ? 
-                              'bg-gold/20 text-gold border-gold/50 shadow-[0_0_10px_rgba(245,158,11,0.2)]' : 'bg-gray-800 text-gray-400 border-gray-600 hover:text-white'}`}>
+                            <button onClick={() => toggleFeatured(prop.id, prop.isFeatured)} className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${prop.isFeatured ? 'bg-gold/20 text-gold border-gold/50 shadow-[0_0_10px_rgba(245,158,11,0.2)]' : 'bg-gray-800 text-gray-400 border-gray-600 hover:text-white'}`}>
                               <Star className={`w-3 h-3 ${prop.isFeatured ? 'fill-current' : ''}`} /> {prop.isFeatured ? 'Featured' : 'Mark Premium'}
                             </button>
                           </td>
@@ -735,6 +778,217 @@ export default function CommandCenter() {
             </div>
           )}
 
+          {/* MEGA PROJECTS TAB */}
+          {activeTab === 'projects' && (
+            <div className="space-y-6 animate-in fade-in duration-500">
+              <div className="bg-[#162032] border border-white/10 rounded-2xl p-6 shadow-lg">
+                <div className="flex justify-between items-end mb-6 border-b border-white/5 pb-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2"><Briefcase className="w-5 h-5 text-emerald-400" /> Mega Projects Manager</h3>
+                    <p className="text-sm text-gray-400 mt-1">Add full-page dedicated landing pages for master developers.</p>
+                  </div>
+                  <button onClick={() => { setEditingProject({}); setActiveFeatures([]); }} className="bg-emerald-500 hover:bg-emerald-400 text-brand-dark font-bold px-4 py-2 rounded-lg flex items-center gap-2 transition-colors">
+                    <Plus className="w-4 h-4" /> Add Project
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto pb-4">
+                  <table className="w-full text-left text-sm whitespace-nowrap">
+                    <thead><tr className="text-gray-400 border-b border-white/10"><th className="pb-3 w-16">Image</th><th className="pb-3">Project Title</th><th className="pb-3">URL Slug</th><th className="pb-3">Starting Price</th><th className="pb-3 text-right">Actions</th></tr></thead>
+                    <tbody>
+                      {projects.length === 0 && <tr><td colSpan={5} className="py-8 text-center text-gray-500">No mega projects found. Add one above.</td></tr>}
+                      {projects.map((proj) => (
+                        <tr key={proj.id} className="border-b border-white/5 hover:bg-white/5 transition-colors group">
+                          <td className="py-3"><img src={proj.coverImage || proj.imageUrl} className="w-12 h-12 rounded-lg object-cover border border-white/10" alt="prop" /></td>
+                          <td className="py-3 font-bold text-white">{proj.title}</td>
+                          <td className="py-3 text-blue-400 font-mono">/projects/{proj.slug}</td>
+                          <td className="py-3 text-emerald-400 font-medium">{proj.startingPrice?.toLocaleString()}</td>
+                          <td className="py-3 text-right flex justify-end gap-2 items-center h-full pt-4">
+                            <button onClick={() => {
+                               setEditingProject(proj);
+                               setActiveFeatures(typeof proj.customFeatures === 'string' ? JSON.parse(proj.customFeatures) : (proj.customFeatures || []));
+                            }} className="p-2 bg-blue-500/10 text-blue-400 hover:bg-blue-500/30 rounded-lg transition-colors"><Edit className="w-4 h-4" /></button>
+                            <button onClick={() => handleDeleteProject(proj.id)} className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500/30 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* ENTERPRISE PROJECT ADD/EDIT MODAL */}
+              {editingProject && (
+                <div className="fixed inset-0 z-[500] bg-brand-dark/90 backdrop-blur-sm flex items-start justify-center p-4 py-12 overflow-y-auto">
+                  <div className="bg-[#162032] border border-white/10 rounded-2xl p-8 w-full max-w-5xl shadow-2xl relative my-auto">
+                    <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+                      <h3 className="text-2xl font-bold text-white">{editingProject.id ? 'Edit Master Development' : 'Launch Mega Project'}</h3>
+                      <button onClick={() => setEditingProject(null)} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+                    </div>
+                    
+                    <form onSubmit={async (e) => {
+                      e.preventDefault();
+                      const formData = new FormData(e.currentTarget);
+                      const galleryInputs = e.currentTarget.querySelectorAll('input[name="galleryImage"]');
+                      const galleryImages = Array.from(galleryInputs).map((input: any) => input.value).filter((val: string) => val.trim() !== '');
+
+                      const payload = {
+                        id: editingProject.id || undefined,
+                        title: formData.get('title'), slug: formData.get('slug'), location: formData.get('location'),
+                        startingPrice: Number(formData.get('startingPrice')), estRoi: formData.get('estRoi'),
+                        agencyName: formData.get('agencyName'), coverImage: formData.get('coverImage'),
+                        projectType: formData.get('projectType'), totalFloors: Number(formData.get('totalFloors')),
+                        possessionDate: formData.get('possessionDate'), description: formData.get('description'),
+                        videoUrl: formData.get('videoUrl'), galleryImages, customFeatures: activeFeatures // 🚀 Powered by React State
+                      };
+
+                      try {
+                        const res = await fetch('/api/projects', {
+                          method: editingProject.id ? 'PATCH' : 'POST',
+                          headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                        });
+                        if (res.ok) { alert("Project Synchronized!"); setEditingProject(null); fetchAllData(); } 
+                        else { const err = await res.json(); alert("Error: " + err.error); }
+                      } catch (err) { alert("Network Error"); }
+                    }} className="space-y-8">
+
+                      {/* 1. Core Specs */}
+                      <div>
+                        <h4 className="text-sm font-black text-emerald-400 uppercase tracking-widest mb-4 border-b border-white/5 pb-2">1. Core Specifications</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="col-span-2"><label className="text-xs text-gray-400 block mb-1">Project Title</label><input required name="title" defaultValue={editingProject.title} className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-white outline-none" /></div>
+                          <div className="col-span-2"><label className="text-xs text-gray-400 block mb-1">URL Slug</label><input required name="slug" defaultValue={editingProject.slug} className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-white outline-none" /></div>
+                          <div className="col-span-2"><label className="text-xs text-gray-400 block mb-1">Developer / Agency</label><input required name="agencyName" defaultValue={editingProject.agencyName} className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-white outline-none" /></div>
+                          <div className="col-span-2"><label className="text-xs text-gray-400 block mb-1">Location Area</label><input required name="location" defaultValue={editingProject.location} className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-white outline-none" /></div>
+                        </div>
+                      </div>
+
+                      {/* 2. Financials & Scale */}
+                      <div>
+                        <h4 className="text-sm font-black text-emerald-400 uppercase tracking-widest mb-4 border-b border-white/5 pb-2">2. Financials & Scale</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                          <div className="col-span-2 md:col-span-1"><label className="text-xs text-gray-400 block mb-1">Type</label><input required name="projectType" defaultValue={editingProject.projectType} placeholder="e.g. Mixed-Use" className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-white outline-none" /></div>
+                          <div className="col-span-2 md:col-span-1"><label className="text-xs text-gray-400 block mb-1">Total Floors</label><input required name="totalFloors" type="number" defaultValue={editingProject.totalFloors} className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-white outline-none" /></div>
+                          <div className="col-span-2 md:col-span-1"><label className="text-xs text-gray-400 block mb-1">Possession</label><input required name="possessionDate" defaultValue={editingProject.possessionDate} placeholder="e.g. Q4 2028" className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-white outline-none" /></div>
+                          <div className="col-span-2 md:col-span-1"><label className="text-xs text-gray-400 block mb-1">Start Price (PKR)</label><input required name="startingPrice" type="number" defaultValue={editingProject.startingPrice} className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-white outline-none" /></div>
+                          <div className="col-span-2 md:col-span-1"><label className="text-xs text-gray-400 block mb-1">Est. ROI</label><input required name="estRoi" defaultValue={editingProject.estRoi} placeholder="18-24%" className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-white outline-none" /></div>
+                        </div>
+                      </div>
+
+                      {/* 3. Media & Gallery (ENTERPRISE FILE UPLOADS) */}
+                      <div id="media-section">
+                        <h4 className="text-sm font-black text-emerald-400 uppercase tracking-widest mb-4 border-b border-white/5 pb-2">3. Media Assets & Video</h4>
+                        <div className="space-y-6">
+                          
+                          {/* 🚀 NEW: Video URL Field */}
+                          <div>
+                            <label className="text-xs text-gray-400 block mb-1">YouTube / Vimeo Promotional Video URL</label>
+                            <input name="videoUrl" defaultValue={editingProject.videoUrl || ""} placeholder="https://www.youtube.com/watch?v=..." className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-white outline-none" />
+                          </div>
+
+                          <div>
+                            <label className="text-xs text-gray-400 block mb-2">Hero Cover Image</label>
+                            <label className="flex flex-col items-center justify-center w-full h-32 bg-brand-dark/50 border-2 border-dashed border-white/20 rounded-xl hover:border-emerald-500/50 transition-colors cursor-pointer relative overflow-hidden">
+                              <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => {
+                                    (document.getElementById('hidden-cover-image') as HTMLInputElement).value = reader.result as string;
+                                    (document.getElementById('cover-preview') as HTMLImageElement).src = reader.result as string;
+                                    document.getElementById('cover-preview')?.classList.remove('hidden');
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }} />
+                              <img id="cover-preview" src={editingProject.coverImage || undefined} className={`absolute inset-0 w-full h-full object-cover ${!editingProject.coverImage ? 'hidden' : ''}`} alt="Cover Preview" />
+                              <div className="flex flex-col items-center z-10 bg-brand-dark/80 p-3 rounded-xl backdrop-blur-sm border border-white/10">
+                                <UploadCloud className="w-6 h-6 text-emerald-400 mb-1" />
+                                <span className="text-xs text-gray-300 font-bold">Click to Upload Cover Image</span>
+                              </div>
+                            </label>
+                            <input type="hidden" id="hidden-cover-image" name="coverImage" defaultValue={editingProject.coverImage || ""} required />
+                          </div>
+                          
+                          <div className="p-5 bg-brand-dark/50 rounded-xl border border-white/5 space-y-4">
+                            <label className="text-xs text-gray-400 block font-bold">Gallery Images (Select Multiple)</label>
+                            <label className="flex items-center justify-center w-full py-4 bg-white/5 border-2 border-dashed border-white/10 rounded-xl hover:bg-white/10 hover:border-blue-500/50 transition-colors cursor-pointer">
+                              <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => {
+                                const files = e.target.files;
+                                if (!files) return;
+                                const container = document.getElementById('gallery-hidden-inputs');
+                                const previewContainer = document.getElementById('gallery-previews');
+                                Array.from(files).forEach(file => {
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => {
+                                    const hidden = document.createElement('input');
+                                    hidden.type = 'hidden'; hidden.name = 'galleryImage'; hidden.value = reader.result as string;
+                                    container?.appendChild(hidden);
+                                    
+                                    const img = document.createElement('img');
+                                    img.src = reader.result as string; img.className = 'w-16 h-16 object-cover rounded-lg border border-white/20 shadow-lg';
+                                    previewContainer?.appendChild(img);
+                                  };
+                                  reader.readAsDataURL(file);
+                                });
+                              }} />
+                              <span className="text-sm text-blue-400 font-bold flex items-center gap-2"><ImageIcon className="w-5 h-5"/> Click to Browse Gallery Files</span>
+                            </label>
+                            <div id="gallery-hidden-inputs">{editingProject.galleryImages?.map((url: string, i: number) => (<input type="hidden" name="galleryImage" value={url} key={`hidden-${i}`} />))}</div>
+                            <div id="gallery-previews" className="flex gap-3 mt-3 flex-wrap">{editingProject.galleryImages?.map((url: string, i: number) => (<img src={url} key={`preview-${i}`} className="w-16 h-16 object-cover rounded-lg border border-white/20 shadow-lg" />))}</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 4. AI Content & Features */}
+                      <div>
+                        <h4 className="text-sm font-black text-emerald-400 uppercase tracking-widest mb-4 border-b border-white/5 pb-2">4. AI Overview & Dynamic Features</h4>
+                        <div className="space-y-6">
+                          <div>
+                            <label className="text-xs text-gray-400 block mb-1">Master Overview (AI will split this into glowing sentences)</label>
+                            <textarea required name="description" defaultValue={editingProject.description} className="w-full h-32 bg-brand-dark border border-white/10 rounded-lg p-3 text-white outline-none custom-scrollbar" placeholder="Write a continuous paragraph..." />
+                          </div>
+
+                          <div className="space-y-4">
+                            <label className="text-xs text-gray-400 block font-bold">Dynamic Project Features (Drag & Drop Reordering)</label>
+                            
+                            {activeFeatures.map((feat, i) => (
+                              <div key={i} className="bg-brand-dark/50 p-4 rounded-xl border border-white/10 flex flex-col gap-3 relative group">
+                                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button type="button" onClick={() => {
+                                    if(i === 0) return;
+                                    const newF = [...activeFeatures];
+                                    [newF[i-1], newF[i]] = [newF[i], newF[i-1]];
+                                    setActiveFeatures(newF);
+                                  }} className="p-1.5 bg-white/10 rounded hover:bg-white/20 text-white">↑</button>
+                                  <button type="button" onClick={() => {
+                                    if(i === activeFeatures.length - 1) return;
+                                    const newF = [...activeFeatures];
+                                    [newF[i+1], newF[i]] = [newF[i], newF[i+1]];
+                                    setActiveFeatures(newF);
+                                  }} className="p-1.5 bg-white/10 rounded hover:bg-white/20 text-white">↓</button>
+                                  <button type="button" onClick={() => {
+                                    setActiveFeatures(activeFeatures.filter((_, idx) => idx !== i));
+                                  }} className="p-1.5 bg-red-500/20 rounded hover:bg-red-500/40 text-red-400 ml-2"><Trash2 className="w-4 h-4" /></button>
+                                </div>
+                                <input value={feat.title} onChange={e => { const newF = [...activeFeatures]; newF[i].title = e.target.value; setActiveFeatures(newF); }} placeholder="Feature Title (e.g. Luxury Residences)" className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-sm text-white outline-none font-bold mt-4 md:mt-0" />
+                                <textarea value={feat.description} onChange={e => { const newF = [...activeFeatures]; newF[i].description = e.target.value; setActiveFeatures(newF); }} placeholder="Describe this feature in detail..." className="w-full h-24 bg-brand-dark border border-white/10 rounded-lg p-3 text-sm text-white outline-none custom-scrollbar" />
+                              </div>
+                            ))}
+
+                            <button type="button" onClick={() => setActiveFeatures([...activeFeatures, {title: "", description: ""}])} className="w-full py-3 bg-white/5 border border-white/10 border-dashed rounded-xl text-sm text-emerald-400 font-bold hover:bg-white/10 flex justify-center items-center gap-2"><Plus className="w-4 h-4"/> Add Dynamic Feature Block</button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button type="submit" className="w-full py-5 bg-emerald-500 hover:bg-emerald-400 text-brand-dark font-black text-lg rounded-xl transition-colors shadow-[0_0_30px_rgba(16,185,129,0.3)]">Launch Enterprise Project</button>
+                    </form>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* DASHBOARD TAB (RESTORED SECTIONS + DYNAMIC FINANCIALS) */}
           {activeTab === 'dashboard' && (
             <div className="space-y-6 animate-in fade-in duration-500">
@@ -756,11 +1010,11 @@ export default function CommandCenter() {
                 <div className="bg-[#162032] border border-white/10 rounded-2xl p-6">
                   <h4 className="text-sm font-bold text-gray-300 mb-4 border-b border-white/5 pb-3">Recent Activity</h4>
                   <ul className="space-y-4">
-                    <li className="flex items-center gap-3 text-sm"><span className="w-2 h-2 rounded-full bg-emerald-500"></span><span className="text-white">Titanium Agency</span> moved DL-102 to "Closed". 
+                    <li className="flex items-center gap-3 text-sm"><span className="w-2 h-2 rounded-full bg-emerald-500"></span><span className="text-white">Titanium Agency</span> moved DL-102 to "Closed".
                     <span className="text-gray-500 text-xs ml-auto">2 hrs ago</span></li>
-                    <li className="flex items-center gap-3 text-sm"><span className="w-2 h-2 rounded-full bg-blue-500"></span>New AI Routing Rule injected by <span className="text-white">Admin</span>. 
+                    <li className="flex items-center gap-3 text-sm"><span className="w-2 h-2 rounded-full bg-blue-500"></span>New AI Routing Rule injected by <span className="text-white">Admin</span>.
                     <span className="text-gray-500 text-xs ml-auto">5 hrs ago</span></li>
-                    <li className="flex items-center gap-3 text-sm"><span className="w-2 h-2 rounded-full bg-gold"></span>DHA Prism Ad reached <span className="text-white">150k impressions</span>. 
+                    <li className="flex items-center gap-3 text-sm"><span className="w-2 h-2 rounded-full bg-gold"></span>DHA Prism Ad reached <span className="text-white">150k impressions</span>.
                     <span className="text-gray-500 text-xs ml-auto">1 day ago</span></li>
                   </ul>
                 </div>
@@ -805,7 +1059,7 @@ export default function CommandCenter() {
                           </td>
                           <td className="py-4 px-2 text-center">
                             {/* INSTANT PAYMENT TOGGLE */}
-                            <button 
+                            <button
                               onClick={() => handleLeadUpdate(lead.id, { isCommissionPaid: !lead.isCommissionPaid })}
                               className={`px-3 py-1.5 rounded font-bold uppercase text-[10px] transition-all w-full tracking-wider ${lead.isCommissionPaid ? 'text-emerald-400 bg-emerald-400/10 hover:bg-emerald-400/20' : 'text-red-400 bg-red-400/10 hover:bg-red-400/20 shadow-[0_0_10px_rgba(239,68,68,0.2)]'}`}
                             >
@@ -839,7 +1093,7 @@ export default function CommandCenter() {
                     leads.filter(l => l.status === 'site_visit').map(stuckLead => (
                       <div key={stuckLead.id} className="bg-brand-dark/50 border border-white/5 p-4 rounded-xl group hover:border-red-500/30 transition-colors">
                         <p className="text-xs text-gray-400 mb-2">Agency: <span className="text-white font-bold">{stuckLead.assignedAgency}</span></p>
-                        <p className="text-sm text-gray-300 leading-relaxed mb-3">Deal <span className="font-bold text-white font-mono">DL-{stuckLead.id.substring(0,5).toUpperCase()}</span> is marked as Site Visit. 
+                        <p className="text-sm text-gray-300 leading-relaxed mb-3">Deal <span className="font-bold text-white font-mono">DL-{stuckLead.id.substring(0,5).toUpperCase()}</span> is marked as Site Visit.
                         Trigger verification to ensure agency isn't hiding a close.</p>
                         <button className="text-xs font-bold bg-white/5 text-gray-300 px-3 py-2 rounded-lg hover:bg-red-500 hover:text-white transition-colors w-full flex items-center justify-center gap-2"><Phone className="w-3 h-3"/> Call Buyer ({stuckLead.name})</button>
                       </div>
@@ -936,10 +1190,8 @@ export default function CommandCenter() {
                   </div>
                   <div><h4 className="text-xs font-black text-gray-500 mb-4 uppercase tracking-widest border-t border-white/5 pt-6">API & Integrations</h4>
                     <div className="space-y-4">
-                      <div><label className="text-xs text-gray-400 mb-1 block">Gemini AI Engine Key</label><input type="password" value={settings.geminiApiKey || 
-                        ""} onChange={e=>setSettings({...settings, geminiApiKey: e.target.value})} className="w-full bg-brand-dark border border-emerald-500/30 rounded-lg p-3 text-emerald-400 font-mono text-sm outline-none" /></div>
-                      <div><label className="text-xs text-gray-400 mb-1 block">WhatsApp Lead-Gen Webhook</label><input type="text" value={settings.whatsappWebhookUrl || 
-                        ""} onChange={e=>setSettings({...settings, whatsappWebhookUrl: e.target.value})} className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-white outline-none" /></div>
+                      <div><label className="text-xs text-gray-400 mb-1 block">Gemini AI Engine Key</label><input type="password" value={settings.geminiApiKey || ""} onChange={e=>setSettings({...settings, geminiApiKey: e.target.value})} className="w-full bg-brand-dark border border-emerald-500/30 rounded-lg p-3 text-emerald-400 font-mono text-sm outline-none" /></div>
+                      <div><label className="text-xs text-gray-400 mb-1 block">WhatsApp Lead-Gen Webhook</label><input type="text" value={settings.whatsappWebhookUrl || ""} onChange={e=>setSettings({...settings, whatsappWebhookUrl: e.target.value})} className="w-full bg-brand-dark border border-white/10 rounded-lg p-3 text-white outline-none" /></div>
                     </div>
                   </div>
                   <div>
@@ -969,8 +1221,7 @@ export default function CommandCenter() {
 
 function SidebarBtn({ icon: Icon, label, active, onClick, className="" }: any) {
   return (
-    <button onClick={onClick} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors w-full text-left ${active ? 
-      'bg-white/10 text-white border border-white/10' : 'text-gray-400 hover:text-white hover:bg-white/5'} ${className}`}>
+    <button onClick={onClick} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors w-full text-left ${active ? 'bg-white/10 text-white border border-white/10' : 'text-gray-400 hover:text-white hover:bg-white/5'} ${className}`}>
       <Icon className="w-5 h-5" /> <span className="font-bold text-xs uppercase tracking-widest">{label}</span>
     </button>
   );
